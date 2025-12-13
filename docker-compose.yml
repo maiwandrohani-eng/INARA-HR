@@ -1,0 +1,119 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: inara-postgres
+    environment:
+      POSTGRES_USER: inara_user
+      POSTGRES_PASSWORD: inara_password
+      POSTGRES_DB: inara_hris
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - inara-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inara_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache & Pub/Sub
+  redis:
+    image: redis:7-alpine
+    container_name: inara-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - inara-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Backend
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: inara-api
+    environment:
+      DATABASE_URL: postgresql://inara_user:inara_password@postgres:5432/inara_hris
+      DATABASE_ASYNC_URL: postgresql+asyncpg://inara_user:inara_password@postgres:5432/inara_hris
+      REDIS_URL: redis://redis:6379
+      SECRET_KEY: your-secret-key-change-in-production
+      ENVIRONMENT: development
+      S3_ENDPOINT_URL: https://nyc3.digitaloceanspaces.com
+      S3_ACCESS_KEY_ID: dummy
+      S3_SECRET_ACCESS_KEY: dummy
+      S3_BUCKET_NAME: dummy
+      SMTP_HOST: localhost
+      SMTP_USER: dummy
+      SMTP_PASSWORD: dummy
+      SMTP_FROM: noreply@inara.org
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/api:/app
+      - api_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - inara-network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: inara-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - api
+    networks:
+      - inara-network
+    command: npm run dev
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: inara-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./infrastructure/nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - api
+      - frontend
+    networks:
+      - inara-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  api_uploads:
+
+networks:
+  inara-network:
+    driver: bridge

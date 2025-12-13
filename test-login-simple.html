@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>INARA Login Test</title>
+    <style>
+        body { font-family: Arial; padding: 40px; max-width: 400px; margin: 0 auto; }
+        input, button { display: block; width: 100%; padding: 10px; margin: 10px 0; }
+        button { background: #0070f3; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0051cc; }
+        #result { margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🔐 INARA Login Test</h1>
+    <p>Testing direct API connection without Next.js</p>
+    
+    <form id="loginForm">
+        <label>Email:</label>
+        <input type="email" id="email" value="admin@inara.org" required>
+        
+        <label>Password:</label>
+        <input type="password" id="password" value="Admin@123" required>
+        
+        <button type="submit">Login</button>
+    </form>
+    
+    <div id="result"></div>
+    
+    <script>
+        const API_URL = 'http://localhost:8000/api/v1';
+        const resultDiv = document.getElementById('result');
+        
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            resultDiv.textContent = '⏳ Logging in...';
+            resultDiv.className = '';
+            
+            try {
+                console.log('📤 Sending login request...');
+                const startTime = Date.now();
+                
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const duration = Date.now() - startTime;
+                console.log(`✅ Response received in ${duration}ms`);
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'success';
+                    resultDiv.textContent = `✅ Login successful! (${duration}ms)\n\n` + JSON.stringify(data, null, 2);
+                    
+                    // Store tokens
+                    localStorage.setItem('access_token', data.access_token);
+                    localStorage.setItem('refresh_token', data.refresh_token);
+                    
+                    console.log('✅ Tokens stored in localStorage');
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.textContent = `❌ Login failed! (${duration}ms)\n\n` + JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                console.error('❌ Login error:', error);
+                resultDiv.className = 'error';
+                resultDiv.textContent = `❌ Error: ${error.message}\n\n` + error.stack;
+            }
+        });
+        
+        // Test backend connectivity on page load
+        fetch(`${API_URL}/../health`)
+            .then(r => r.json())
+            .then(data => console.log('✅ Backend is reachable:', data))
+            .catch(err => console.error('❌ Backend not reachable:', err));
+    </script>
+</body>
+</html>

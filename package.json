@@ -1,0 +1,10 @@
+{
+  "name": "inara-hr",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "cd apps/frontend && npm run dev",
+    "build": "cd apps/frontend && npm run build",
+    "start": "cd apps/frontend && npm start"
+  }
+}
