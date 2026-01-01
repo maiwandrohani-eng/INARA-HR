@@ -15,6 +15,7 @@ const nextConfig = {
   },
   webpack: (config) => {
     // Resolve @ alias to the current directory (apps/frontend when rootDirectory is set)
+    // This ensures @/lib/api-client and @/lib/utils resolve correctly
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname),
