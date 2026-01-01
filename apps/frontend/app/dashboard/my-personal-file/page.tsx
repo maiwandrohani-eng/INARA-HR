@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 /**
  * My Personal File Page
  * Redirects employee to their own personal file

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 /**
  * Organization Chart Page
  * Displays the organizational hierarchy

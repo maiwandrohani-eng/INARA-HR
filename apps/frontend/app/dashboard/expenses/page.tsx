@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 /**
  * Expense Management Page
  */

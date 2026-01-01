@@ -1,24 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   reactStrictMode: true,
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   eslint: {
     ignoreDuringBuilds: true,
   },
-  webpack: (config, { isServer }) => {
-    // Increase build memory limit
-    if (!isServer) {
-      config.optimization.splitChunks = {
-        chunks: 'all',
-        cacheGroups: {
-          default: false,
-          vendors: false,
-        },
-      }
-    }
-    return config
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  experimental: {
+    serverActions: true,
   },
   images: {
     remotePatterns: [

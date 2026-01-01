@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 /**
  * Dashboard Home Page - Dynamic Role-Based Dashboard
  */

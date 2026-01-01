@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 /**
  * Benefits Management Page
  * Health insurance, retirement plans, FSA/HSA, etc.
