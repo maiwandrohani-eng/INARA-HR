@@ -13,12 +13,16 @@ const nextConfig = {
   experimental: {
     serverActions: true,
   },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        '@': path.resolve(__dirname),
-      }
+  webpack: (config) => {
+    const rootPath = path.resolve(__dirname)
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': rootPath,
+      '@/lib': path.join(rootPath, 'lib'),
+      '@/components': path.join(rootPath, 'components'),
+      '@/services': path.join(rootPath, 'services'),
+      '@/hooks': path.join(rootPath, 'hooks'),
+      '@/state': path.join(rootPath, 'state'),
     }
     return config
   },
