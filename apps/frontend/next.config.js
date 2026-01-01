@@ -10,16 +10,24 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  experimental: {
-    serverActions: true,
-  },
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     // Resolve @ alias to the current directory (apps/frontend when rootDirectory is set)
     // This ensures @/lib/api-client and @/lib/utils resolve correctly
-    config.resolve.alias = {
+    const aliasConfig = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname),
     }
+    config.resolve.alias = aliasConfig
+    
+    // Ensure extensions are resolved correctly
+    config.resolve.extensions = [
+      ...(config.resolve.extensions || []),
+      '.ts',
+      '.tsx',
+      '.js',
+      '.jsx',
+    ]
+    
     return config
   },
   images: {
