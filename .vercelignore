@@ -10,7 +10,10 @@ __pycache__/
 *.env.local
 
 # IMPORTANT: Do NOT exclude frontend lib directory - it's needed for builds
-!apps/frontend/lib/
+# Explicitly include lib directory and TypeScript files
+!apps/frontend/lib/**
+!apps/frontend/**/*.ts
+!apps/frontend/**/*.tsx
 
 # Dependencies (Vercel will install these)
 node_modules/
