@@ -9,6 +9,9 @@ __pycache__/
 *.env
 *.env.local
 
+# IMPORTANT: Do NOT exclude frontend lib directory - it's needed for builds
+!apps/frontend/lib/
+
 # Dependencies (Vercel will install these)
 node_modules/
 venv/
