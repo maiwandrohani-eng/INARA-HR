@@ -1,4 +1,3 @@
-export const dynamic = "force-dynamic";
 
 /**
  * Organization Chart Page
@@ -6,6 +5,7 @@ export const dynamic = "force-dynamic";
  */
 
 'use client'
+export const dynamic = "force-dynamic";
 
 import { OrganizationChart } from '@/components/organization/OrganizationChart'
 

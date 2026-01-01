@@ -1,10 +1,10 @@
-export const dynamic = "force-dynamic";
 
 /**
  * Dashboard Home Page - Dynamic Role-Based Dashboard
  */
 
 'use client'
+export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from 'react'
 import { EmployeeDashboard } from '@/components/dashboard/EmployeeDashboard'
