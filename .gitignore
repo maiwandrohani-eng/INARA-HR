@@ -13,8 +13,10 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# Python lib directories (but NOT apps/frontend/lib which contains TypeScript files)
+/lib/
 lib64/
+!apps/frontend/lib/
 parts/
 sdist/
 var/
