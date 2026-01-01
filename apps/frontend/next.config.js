@@ -10,24 +10,19 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  webpack: (config, { isServer }) => {
-    // Resolve @ alias to the current directory (apps/frontend when rootDirectory is set)
-    // This ensures @/lib/api-client and @/lib/utils resolve correctly
-    const aliasConfig = {
+  webpack: (config) => {
+    // Resolve @ alias - Next.js uses tsconfig paths, but webpack needs explicit alias
+    // When rootDirectory is apps/frontend, __dirname is the apps/frontend directory
+    const rootPath = path.resolve(__dirname)
+    config.resolve.alias = {
       ...config.resolve.alias,
-      '@': path.resolve(__dirname),
+      '@': rootPath,
+      '@/lib': path.join(rootPath, 'lib'),
+      '@/components': path.join(rootPath, 'components'),
+      '@/services': path.join(rootPath, 'services'),
+      '@/hooks': path.join(rootPath, 'hooks'),
+      '@/state': path.join(rootPath, 'state'),
     }
-    config.resolve.alias = aliasConfig
-    
-    // Ensure extensions are resolved correctly
-    config.resolve.extensions = [
-      ...(config.resolve.extensions || []),
-      '.ts',
-      '.tsx',
-      '.js',
-      '.jsx',
-    ]
-    
     return config
   },
   images: {
