@@ -33,24 +33,69 @@ export function exportToExcel(data: any[], columns: ExcelColumn[], filename: str
 }
 
 export function exportEmployeeTemplate() {
+  // Define columns exactly as expected by the import function
+  // Order matters - should match ImportEmployeesDialog.tsx parsing
   const columns: ExcelColumn[] = [
-    { header: 'First Name', key: 'first_name', width: 15 },
-    { header: 'Last Name', key: 'last_name', width: 15 },
-    { header: 'Work Email', key: 'work_email', width: 25 },
-    { header: 'Personal Email', key: 'personal_email', width: 25 },
-    { header: 'Phone', key: 'phone', width: 15 },
-    { header: 'Mobile', key: 'mobile', width: 15 },
-    { header: 'Date of Birth', key: 'date_of_birth', width: 15 },
-    { header: 'Gender', key: 'gender', width: 10 },
-    { header: 'Nationality', key: 'nationality', width: 15 },
-    { header: 'Employment Type', key: 'employment_type', width: 15 },
-    { header: 'Work Location', key: 'work_location', width: 20 },
-    { header: 'Hire Date', key: 'hire_date', width: 15 },
-    { header: 'Position', key: 'position', width: 20 },
-    { header: 'Department', key: 'department', width: 20 },
+    { header: 'First Name', key: 'first_name', width: 20 }, // REQUIRED
+    { header: 'Last Name', key: 'last_name', width: 20 }, // REQUIRED
+    { header: 'Work Email', key: 'work_email', width: 30 }, // REQUIRED
+    { header: 'Personal Email', key: 'personal_email', width: 30 }, // Optional
+    { header: 'Phone', key: 'phone', width: 18 }, // Optional
+    { header: 'Mobile', key: 'mobile', width: 18 }, // Optional
+    { header: 'Date of Birth', key: 'date_of_birth', width: 18 }, // Optional - Format: YYYY-MM-DD
+    { header: 'Gender', key: 'gender', width: 12 }, // Optional - Values: male, female, other
+    { header: 'Nationality', key: 'nationality', width: 20 }, // Optional - Country name
+    { header: 'Employment Type', key: 'employment_type', width: 18 }, // Optional - Values: full_time, part_time, consultant, volunteer, intern
+    { header: 'Work Location', key: 'work_location', width: 25 }, // Optional - City/Office location
+    { header: 'Hire Date', key: 'hire_date', width: 18 }, // Optional - Format: YYYY-MM-DD
+    // Note: Position and Department are not imported (require ID lookup in system)
+    // If needed, these should be set manually after import
   ]
   
-  // Export with sample data
+  // Create workbook with instructions sheet and data sheet
+  const workbook = XLSX.utils.book_new()
+  
+  // Instructions sheet
+  const instructions = [
+    ['EMPLOYEE IMPORT TEMPLATE - INSTRUCTIONS'],
+    [''],
+    ['REQUIRED FIELDS (must be filled):'],
+    ['  - First Name: Employee\'s first name'],
+    ['  - Last Name: Employee\'s last name'],
+    ['  - Work Email: Official work email address (must be unique)'],
+    [''],
+    ['OPTIONAL FIELDS:'],
+    ['  - Personal Email: Personal email address'],
+    ['  - Phone: Office phone number'],
+    ['  - Mobile: Mobile phone number'],
+    ['  - Date of Birth: Format YYYY-MM-DD (e.g., 1990-01-15)'],
+    ['  - Gender: male, female, or other'],
+    ['  - Nationality: Country name (e.g., Afghanistan)'],
+    ['  - Employment Type: full_time, part_time, consultant, volunteer, or intern'],
+    ['  - Work Location: City or office location'],
+    ['  - Hire Date: Format YYYY-MM-DD (e.g., 2024-01-01)'],
+    [''],
+    ['NOTES:'],
+    ['  - Position and Department fields are NOT imported (use system to assign after import)'],
+    ['  - Dates must be in YYYY-MM-DD format'],
+    ['  - Employment Type is case-insensitive but should match listed values'],
+    ['  - Empty rows will be skipped'],
+    ['  - Rows missing required fields will be skipped'],
+    [''],
+    ['IMPORT PROCESS:'],
+    ['  1. Fill in employee data in the "Employees" sheet below'],
+    ['  2. Save the file'],
+    ['  3. Use the Import Employees feature in the system'],
+    ['  4. Select this file to upload'],
+    [''],
+  ]
+  
+  const instructionsSheet = XLSX.utils.aoa_to_sheet(instructions)
+  
+  // Set column widths for instructions
+  instructionsSheet['!cols'] = [{ wch: 80 }]
+  
+  // Employees data sheet with sample row
   const sampleData = [
     {
       first_name: 'John',
@@ -65,12 +110,34 @@ export function exportEmployeeTemplate() {
       employment_type: 'full_time',
       work_location: 'Kabul',
       hire_date: '2024-01-01',
-      position: 'Project Manager',
-      department: 'Programs',
     }
   ]
   
-  exportToExcel(sampleData, columns, 'employee_import_template')
+  // Create headers row
+  const headers = columns.map(col => col.header)
+  const rows = sampleData.map(item => 
+    columns.map(col => {
+      const value = item[col.key]
+      return value === null || value === undefined ? '' : value
+    })
+  )
+  
+  const worksheetData = [headers, ...rows]
+  const employeesSheet = XLSX.utils.aoa_to_sheet(worksheetData)
+  
+  // Set column widths
+  const columnWidths = columns.map(col => ({ wch: col.width || 15 }))
+  employeesSheet['!cols'] = columnWidths
+  
+  // Freeze header row
+  employeesSheet['!freeze'] = { xSplit: 0, ySplit: 1 }
+  
+  // Add sheets to workbook
+  XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions')
+  XLSX.utils.book_append_sheet(workbook, employeesSheet, 'Employees')
+  
+  // Generate Excel file and download
+  XLSX.writeFile(workbook, `employee_import_template_${new Date().toISOString().split('T')[0]}.xlsx`)
 }
 
 export function exportLeaveTemplate() {

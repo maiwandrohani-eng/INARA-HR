@@ -53,6 +53,18 @@ class EmployeeRepository:
         
         await self.db.flush()
         return employee
+    
+    async def get_by_user_id(self, user_id: uuid.UUID) -> Optional[Employee]:
+        """Get employee by user ID"""
+        result = await self.db.execute(
+            select(Employee).where(
+                and_(
+                    Employee.user_id == user_id,
+                    Employee.is_deleted == False
+                )
+            )
+        )
+        return result.scalar_one_or_none()
 
 
 # Similar repositories for Department, Position, Contract...

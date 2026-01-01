@@ -566,4 +566,239 @@ class EmailService:
         """
         
         return self._send_email(to_email, subject, html_body, text_body)
+    
+    async def send_verification_email(
+        self,
+        to_email: str,
+        user_name: str,
+        verification_token: str
+    ) -> bool:
+        """
+        Send email verification email
+        
+        Args:
+            to_email: User's email
+            user_name: User's full name
+            verification_token: Email verification token
+        """
+        subject = "Verify Your Email Address"
+        
+        verification_url = f"{self.config.APP_URL}/verify-email?token={verification_token}"
+        
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #2563eb;">Verify Your Email Address</h2>
+                <p>Hello {user_name},</p>
+                <p>Thank you for registering with INARA HRIS. Please verify your email address by clicking the button below:</p>
+                
+                <p>
+                    <a href="{verification_url}" 
+                       style="display: inline-block; padding: 12px 24px; background-color: #2563eb; 
+                              color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">
+                        Verify Email Address
+                    </a>
+                </p>
+                
+                <p>Or copy and paste this link into your browser:</p>
+                <p style="color: #6b7280; word-break: break-all;">{verification_url}</p>
+                
+                <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+                    This verification link will expire in 7 days. If you didn't create an account, please ignore this email.
+                </p>
+                
+                <p style="color: #6b7280; font-size: 14px;">
+                    This is an automated notification from INARA HR System.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        text_body = f"""
+        Verify Your Email Address
+        
+        Hello {user_name},
+        
+        Thank you for registering with INARA HRIS. Please verify your email address by visiting:
+        
+        {verification_url}
+        
+        This verification link will expire in 7 days. If you didn't create an account, please ignore this email.
+        
+        This is an automated notification from INARA HR System.
+        """
+        
+        return self._send_email(to_email, subject, html_body, text_body)
+    
+    async def send_password_reset_email(
+        self,
+        to_email: str,
+        user_name: str,
+        reset_token: str
+    ) -> bool:
+        """
+        Send password reset email
+        
+        Args:
+            to_email: User's email
+            user_name: User's full name
+            reset_token: Password reset token
+        """
+        subject = "Reset Your Password"
+        
+        reset_url = f"{self.config.APP_URL}/reset-password?token={reset_token}"
+        
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #ef4444;">Reset Your Password</h2>
+                <p>Hello {user_name},</p>
+                <p>We received a request to reset your password. Click the button below to create a new password:</p>
+                
+                <p>
+                    <a href="{reset_url}" 
+                       style="display: inline-block; padding: 12px 24px; background-color: #ef4444; 
+                              color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">
+                        Reset Password
+                    </a>
+                </p>
+                
+                <p>Or copy and paste this link into your browser:</p>
+                <p style="color: #6b7280; word-break: break-all;">{reset_url}</p>
+                
+                <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+                    This password reset link will expire in 24 hours. If you didn't request a password reset, please ignore this email.
+                </p>
+                
+                <p style="color: #6b7280; font-size: 14px;">
+                    This is an automated notification from INARA HR System.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        text_body = f"""
+        Reset Your Password
+        
+        Hello {user_name},
+        
+        We received a request to reset your password. Visit the link below to create a new password:
+        
+        {reset_url}
+        
+        This password reset link will expire in 24 hours. If you didn't request a password reset, please ignore this email.
+        
+        This is an automated notification from INARA HR System.
+        """
+        
+        return self._send_email(to_email, subject, html_body, text_body)
+    
+    async def send_password_reset_confirmation(
+        self,
+        to_email: str,
+        user_name: str
+    ) -> bool:
+        """
+        Send password reset confirmation email
+        
+        Args:
+            to_email: User's email
+            user_name: User's full name
+        """
+        subject = "Your Password Has Been Reset"
+        
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #10b981;">Password Reset Successful</h2>
+                <p>Hello {user_name},</p>
+                <p>Your password has been successfully reset.</p>
+                
+                <p>If you didn't make this change, please contact your system administrator immediately.</p>
+                
+                <p>
+                    <a href="{self.config.APP_URL}/login" 
+                       style="display: inline-block; padding: 12px 24px; background-color: #2563eb; 
+                              color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">
+                        Log In
+                    </a>
+                </p>
+                
+                <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+                    This is an automated notification from INARA HR System.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        text_body = f"""
+        Password Reset Successful
+        
+        Hello {user_name},
+        
+        Your password has been successfully reset.
+        
+        If you didn't make this change, please contact your system administrator immediately.
+        
+        Log in: {self.config.APP_URL}/login
+        
+        This is an automated notification from INARA HR System.
+        """
+        
+        return self._send_email(to_email, subject, html_body, text_body)
+    
+    async def send_password_change_notification(
+        self,
+        to_email: str,
+        user_name: str
+    ) -> bool:
+        """
+        Send password change notification email
+        
+        Args:
+            to_email: User's email
+            user_name: User's full name
+        """
+        subject = "Your Password Has Been Changed"
+        
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #10b981;">Password Changed</h2>
+                <p>Hello {user_name},</p>
+                <p>Your password has been successfully changed.</p>
+                
+                <p>If you didn't make this change, please contact your system administrator immediately.</p>
+                
+                <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+                    This is an automated notification from INARA HR System.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        text_body = f"""
+        Password Changed
+        
+        Hello {user_name},
+        
+        Your password has been successfully changed.
+        
+        If you didn't make this change, please contact your system administrator immediately.
+        
+        This is an automated notification from INARA HR System.
+        """
+        
+        return self._send_email(to_email, subject, html_body, text_body)
 
+
+# Create singleton instance for easy importing
+email_service = EmailService()

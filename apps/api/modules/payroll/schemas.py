@@ -4,14 +4,15 @@ Request/Response models for payroll API
 """
 
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional
+from typing import List, Optional, Union
 from datetime import datetime, date
 from decimal import Decimal
+from uuid import UUID
 
 
 class PayrollEntryBase(BaseModel):
     """Base schema for payroll entry"""
-    employee_id: str
+    employee_id: Union[str, UUID]
     employee_number: str
     first_name: str
     last_name: str
@@ -30,8 +31,8 @@ class PayrollEntryCreate(PayrollEntryBase):
 
 class PayrollEntryResponse(PayrollEntryBase):
     """Schema for payroll entry response"""
-    id: str
-    payroll_id: str
+    id: Union[str, UUID]
+    payroll_id: Union[str, UUID]
     gross_salary: Decimal
     net_salary: Decimal
     created_at: datetime
@@ -55,10 +56,10 @@ class PayrollUpdate(BaseModel):
 
 class PayrollApprovalResponse(BaseModel):
     """Schema for approval response"""
-    id: str
-    payroll_id: str
+    id: Union[str, UUID]
+    payroll_id: Union[str, UUID]
     approver_role: str
-    approver_id: str
+    approver_id: Union[str, UUID]
     approved: str
     decision_date: Optional[datetime] = None
     comments: Optional[str] = None
@@ -69,7 +70,7 @@ class PayrollApprovalResponse(BaseModel):
 
 class PayrollResponse(BaseModel):
     """Schema for payroll response"""
-    id: str
+    id: Union[str, UUID]
     month: int
     year: int
     payment_date: date
@@ -79,8 +80,8 @@ class PayrollResponse(BaseModel):
     total_deductions: Decimal
     total_net_salary: Decimal
     status: str
-    created_by_id: str
-    processed_by_id: Optional[str] = None
+    created_by_id: Union[str, UUID]
+    processed_by_id: Optional[Union[str, UUID]] = None
     pdf_filename: Optional[str] = None
     created_at: datetime
     updated_at: datetime
@@ -121,7 +122,7 @@ class PayrollStatsResponse(BaseModel):
 
 class EmployeePayrollSummary(BaseModel):
     """Schema for employee payroll summary"""
-    employee_id: str
+    employee_id: Union[str, UUID]
     employee_number: str
     first_name: str
     last_name: str

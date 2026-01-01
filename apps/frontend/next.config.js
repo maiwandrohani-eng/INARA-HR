@@ -11,10 +11,18 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'nyc3.digitaloceanspaces.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'hrmis.inara.ngo', // Cloudflare R2
+      },
+      {
+        protocol: 'https',
+        hostname: '*.r2.cloudflarestorage.com', // Cloudflare R2 endpoints
+      },
     ],
   },
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
   },
 }
 

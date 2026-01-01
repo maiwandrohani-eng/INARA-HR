@@ -23,12 +23,46 @@ async def get_user_role(
     Check if user is a supervisor (has direct reports)
     """
     service = DashboardService(db)
-    is_supervisor = await service.check_if_supervisor(current_user["id"])
+    import uuid
+    is_supervisor = await service.check_if_supervisor(uuid.UUID(current_user["id"]))
     
     return {
         "is_supervisor": is_supervisor,
         "user_id": current_user["id"],
         "email": current_user["email"]
+    }
+
+
+@router.get("/is-supervisor-of/{employee_id}")
+async def is_supervisor_of(
+    employee_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user)
+) -> Dict[str, Any]:
+    """
+    Check if current user is supervisor of a specific employee
+    """
+    from modules.employees.repositories import EmployeeRepository
+    from sqlalchemy import select
+    import uuid
+    
+    employee_repo = EmployeeRepository(db)
+    current_employee = await employee_repo.get_by_user_id(current_user["id"])
+    
+    if not current_employee:
+        return {"is_supervisor": False, "reason": "Current user has no employee record"}
+    
+    target_employee = await employee_repo.get_by_id(uuid.UUID(employee_id))
+    if not target_employee:
+        return {"is_supervisor": False, "reason": "Target employee not found"}
+    
+    is_supervisor = target_employee.manager_id == current_employee.id
+    
+    return {
+        "is_supervisor": is_supervisor,
+        "current_employee_id": str(current_employee.id),
+        "target_employee_id": employee_id,
+        "target_manager_id": str(target_employee.manager_id) if target_employee.manager_id else None
     }
 
 

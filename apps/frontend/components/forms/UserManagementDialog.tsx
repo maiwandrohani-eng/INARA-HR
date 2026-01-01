@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import apiClient, { api } from '@/lib/api-client'
-import { Users, Shield, Trash2, Plus, Edit, Key } from 'lucide-react'
+import { Users, Shield, Trash2, Plus, Edit, Key, Download, RefreshCw, Eye, EyeOff } from 'lucide-react'
 
 interface Role {
   id: string
@@ -45,13 +45,24 @@ interface UserManagementDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
+interface Employee {
+  id: string
+  employee_number: string
+  full_name: string
+  email: string
+  department: string | null
+  position: string | null
+}
+
 export function UserManagementDialog({ open, onOpenChange }: UserManagementDialogProps) {
   const [loading, setLoading] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [showAddUser, setShowAddUser] = useState(false)
   const [roles, setRoles] = useState<any[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
   
   // Add user form
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('')
   const [newEmail, setNewEmail] = useState('')
   const [newFirstName, setNewFirstName] = useState('')
   const [newLastName, setNewLastName] = useState('')
@@ -59,6 +70,8 @@ export function UserManagementDialog({ open, onOpenChange }: UserManagementDialo
   const [newCountryCode, setNewCountryCode] = useState('')
   const [newRoleId, setNewRoleId] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [generatedPassword, setGeneratedPassword] = useState('')
 
   // Edit user state
   const [showEditUser, setShowEditUser] = useState(false)
@@ -81,8 +94,52 @@ export function UserManagementDialog({ open, onOpenChange }: UserManagementDialo
     if (open) {
       fetchUsers()
       fetchRoles()
+      fetchEmployeesWithoutUsers()
     }
   }, [open])
+
+  const fetchEmployeesWithoutUsers = async () => {
+    try {
+      const data = await api.get('/auth/employees/without-users')
+      setEmployees(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Error fetching employees:', error)
+      setEmployees([])
+    }
+  }
+
+  const generatePassword = () => {
+    // Generate a secure password (12 chars: uppercase, lowercase, digits, special)
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
+    let password = ''
+    // Ensure at least one from each category
+    password += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)]
+    password += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]
+    password += '0123456789'[Math.floor(Math.random() * 10)]
+    password += '!@#$%^&*'[Math.floor(Math.random() * 8)]
+    // Fill the rest
+    for (let i = password.length; i < 12; i++) {
+      password += chars[Math.floor(Math.random() * chars.length)]
+    }
+    // Shuffle
+    password = password.split('').sort(() => Math.random() - 0.5).join('')
+    setNewPassword(password)
+    setGeneratedPassword(password)
+    return password
+  }
+
+  const handleEmployeeSelect = (employeeId: string) => {
+    setSelectedEmployeeId(employeeId)
+    const employee = employees.find(emp => emp.id === employeeId)
+    if (employee) {
+      setNewEmail(employee.email || '')
+      const nameParts = employee.full_name.split(' ')
+      setNewFirstName(nameParts[0] || '')
+      setNewLastName(nameParts.slice(1).join(' ') || '')
+      // Auto-generate password when employee is selected
+      generatePassword()
+    }
+  }
 
   const fetchRoles = async () => {
     try {
@@ -113,28 +170,46 @@ export function UserManagementDialog({ open, onOpenChange }: UserManagementDialo
 
     try {
       // Validate required fields
-      if (!newEmail || !newFirstName || !newLastName || !newPassword || !newCountryCode || !newRoleId) {
+      if (!newEmail || !newFirstName || !newLastName || !newCountryCode || !newRoleId) {
         alert('Please fill in all required fields')
         setLoading(false)
         return
       }
 
-      const userData = {
+      // Auto-generate password if not provided
+      if (!newPassword) {
+        const generated = generatePassword()
+        // Continue with generated password
+      }
+
+      const userData: any = {
         email: newEmail,
         first_name: newFirstName,
         last_name: newLastName,
         phone: newPhone || null,
         country_code: newCountryCode,
-        password: newPassword,
         role_ids: [newRoleId],
       }
 
-      await api.post('/auth/register', userData)
+      // Only include password if provided (otherwise backend will auto-generate)
+      if (newPassword) {
+        userData.password = newPassword
+      }
 
-      alert('User created successfully!')
+      // Include employee_id if selected
+      if (selectedEmployeeId) {
+        userData.employee_id = selectedEmployeeId
+      }
+
+      const response = await api.post('/auth/register', userData)
+
+      // Show generated password if available
+      const password = response.generated_password || newPassword
+      alert(`User created successfully!\n\nEmail: ${response.email}\nPassword: ${password}\n\nPlease save this password and share it with the user.`)
       setShowAddUser(false)
       resetAddForm()
       fetchUsers()
+      fetchEmployeesWithoutUsers()
     } catch (error: any) {
       console.error('Error creating user:', error)
       const errorMessage = error.response?.data?.error?.message || error.message || 'Please try again'
@@ -170,6 +245,7 @@ export function UserManagementDialog({ open, onOpenChange }: UserManagementDialo
   }
 
   const resetAddForm = () => {
+    setSelectedEmployeeId('')
     setNewEmail('')
     setNewFirstName('')
     setNewLastName('')
@@ -177,6 +253,48 @@ export function UserManagementDialog({ open, onOpenChange }: UserManagementDialo
     setNewCountryCode('')
     setNewRoleId('')
     setNewPassword('')
+    setGeneratedPassword('')
+    setShowPassword(false)
+  }
+
+  const handleExportUsers = async () => {
+    if (!confirm('This will reset all user passwords and generate new ones. The CSV file will contain the new passwords. Continue?')) {
+      return
+    }
+
+    try {
+      setLoading(true)
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+      const token = localStorage.getItem('access_token')
+      
+      const response = await fetch(`${API_URL}/auth/users/export`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to export users')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'users_credentials_export.csv'
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      
+      alert('Users exported successfully! All passwords have been reset and new passwords are in the CSV file.')
+    } catch (error: any) {
+      console.error('Error exporting users:', error)
+      alert(`Failed to export users: ${error.message || 'Please try again'}`)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleEditUser = (user: User) => {
@@ -280,19 +398,59 @@ export function UserManagementDialog({ open, onOpenChange }: UserManagementDialo
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Add User Section */}
-          {!showAddUser ? (
-            <div className="flex justify-end">
+          {/* Action Buttons */}
+          <div className="flex gap-3 justify-end">
+            <Button 
+              variant="outline"
+              onClick={handleExportUsers}
+              disabled={loading}
+              className="flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Export Users with Credentials
+            </Button>
+            {!showAddUser && (
               <Button onClick={() => setShowAddUser(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add New User
               </Button>
-            </div>
-          ) : (
+            )}
+          </div>
+
+          {/* Add User Section */}
+          {showAddUser ? (
             <form onSubmit={handleAddUser} className="border rounded-lg p-4 space-y-4">
               <h3 className="text-lg font-semibold">Add New User</h3>
               
               <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="employee">Select Employee (Optional)</Label>
+                  <Select 
+                    value={selectedEmployeeId || undefined} 
+                    onValueChange={handleEmployeeSelect}
+                  >
+                    <SelectTrigger id="employee">
+                      <SelectValue placeholder={employees.length === 0 ? "No employees available without user accounts" : "Select an employee to auto-fill details"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {employees.length === 0 ? (
+                        <div className="px-2 py-1.5 text-sm text-gray-500">
+                          No employees available without user accounts
+                        </div>
+                      ) : (
+                        employees.map((emp) => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.full_name} ({emp.employee_number}) - {emp.email}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">
+                    Select an employee to auto-fill their details. Password will be auto-generated.
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="email">Email *</Label>
                   <Input
@@ -373,15 +531,45 @@ export function UserManagementDialog({ open, onOpenChange }: UserManagementDialo
                 </div>
 
                 <div className="space-y-2 col-span-2">
-                  <Label htmlFor="password">Password *</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Min 8 characters, include uppercase, lowercase, and digit"
-                    required
-                  />
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password *</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={generatePassword}
+                      className="text-xs"
+                    >
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                      Generate Password
+                    </Button>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Min 8 characters, include uppercase, lowercase, and digit"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                  {generatedPassword && (
+                    <p className="text-xs text-green-600">
+                      ✓ Password auto-generated: {showPassword ? generatedPassword : '••••••••••••'}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -401,7 +589,7 @@ export function UserManagementDialog({ open, onOpenChange }: UserManagementDialo
                 </Button>
               </div>
             </form>
-          )}
+          ) : null}
 
           {/* Users List */}
           <div className="border rounded-lg">

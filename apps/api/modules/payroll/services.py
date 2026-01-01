@@ -84,14 +84,20 @@ class PayrollService:
     async def check_payroll_exists(
         session: AsyncSession,
         month: int,
-        year: int
+        year: int,
+        country_code: str = None
     ) -> bool:
-        """Check if payroll already exists for the given month/year"""
+        """Check if payroll already exists for the given month/year (tenant-aware)"""
         query = select(Payroll).where(
             Payroll.month == month,
             Payroll.year == year,
             Payroll.is_deleted == False
         )
+        
+        # Add tenant filtering if country_code provided
+        if country_code:
+            query = query.where(Payroll.country_code == country_code)
+        
         result = await session.execute(query)
         return result.scalar_one_or_none() is not None
     
@@ -103,9 +109,16 @@ class PayrollService:
     ) -> Payroll:
         """Create a new payroll batch"""
         
-        # Check if payroll already exists for this month
+        # Get user's country_code for tenant filtering
+        from modules.auth.models import User
+        user_query = select(User).where(User.id == uuid.UUID(user_id))
+        user_result = await session.execute(user_query)
+        user = user_result.scalar_one_or_none()
+        user_country = user.country_code if user else None
+        
+        # Check if payroll already exists for this month in this tenant
         exists = await PayrollService.check_payroll_exists(
-            session, payroll_data.month, payroll_data.year
+            session, payroll_data.month, payroll_data.year, user_country
         )
         if exists:
             raise BadRequestException(
@@ -131,6 +144,7 @@ class PayrollService:
             total_deductions=total_deductions,
             total_net_salary=total_net,
             status=PayrollStatus.DRAFT,
+            country_code=user_country,
             created_by_id=uuid.UUID(user_id),
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
@@ -165,16 +179,26 @@ class PayrollService:
             session.add(entry)
         
         await session.commit()
-        await session.refresh(payroll)
+        
+        # Reload with relationships
+        query = (
+            select(Payroll)
+            .options(selectinload(Payroll.entries))
+            .options(selectinload(Payroll.approvals))
+            .where(Payroll.id == payroll.id)
+        )
+        result = await session.execute(query)
+        payroll = result.scalar_one()
         
         return payroll
     
     @staticmethod
     async def get_payroll(
         session: AsyncSession,
-        payroll_id: str
+        payroll_id: str,
+        country_code: Optional[str] = None
     ) -> Payroll:
-        """Get payroll by ID with entries and approvals"""
+        """Get payroll by ID with entries and approvals (tenant-aware)"""
         query = (
             select(Payroll)
             .options(selectinload(Payroll.entries))
@@ -184,6 +208,10 @@ class PayrollService:
                 Payroll.is_deleted == False
             )
         )
+        
+        # Add tenant filtering if country_code provided
+        if country_code:
+            query = query.where(Payroll.country_code == country_code)
         result = await session.execute(query)
         payroll = result.scalar_one_or_none()
         
@@ -198,12 +226,17 @@ class PayrollService:
         page: int = 1,
         page_size: int = 20,
         status: Optional[str] = None,
-        year: Optional[int] = None
+        year: Optional[int] = None,
+        country_code: Optional[str] = None
     ) -> tuple[List[Payroll], int]:
-        """List payrolls with pagination and filters"""
+        """List payrolls with pagination and filters (tenant-aware)"""
         
         # Build query
         query = select(Payroll).where(Payroll.is_deleted == False)
+        
+        # Add tenant filtering
+        if country_code:
+            query = query.where(Payroll.country_code == country_code)
         
         if status:
             query = query.where(Payroll.status == status)
@@ -303,7 +336,17 @@ class PayrollService:
         payroll_id: str,
         user_id: str
     ) -> Payroll:
-        """Submit payroll to Finance Manager for review"""
+        """
+        Submit payroll to Finance Manager for review
+        Creates approval chain: Finance Manager → CEO
+        """
+        from core.role_helpers import get_finance_manager, get_ceo
+        from modules.approvals.services import ApprovalService
+        from modules.approvals.schemas import ApprovalRequestCreate
+        from modules.approvals.models import ApprovalType
+        from modules.employees.models import Employee
+        from modules.employees.repositories import EmployeeRepository
+        from sqlalchemy import select
         
         payroll = await PayrollService.get_payroll(session, payroll_id)
         
@@ -313,13 +356,74 @@ class PayrollService:
         if not payroll.entries:
             raise BadRequestException("Cannot submit empty payroll")
         
+        # Get HR Manager employee (who created this)
+        hr_employee_result = await session.execute(
+            select(Employee).where(Employee.user_id == uuid.UUID(user_id))
+        )
+        hr_employee = hr_employee_result.scalar_one_or_none()
+        if not hr_employee:
+            raise BadRequestException("HR Manager employee record not found")
+        
+        country_code = payroll.country_code or hr_employee.country_code or 'US'
+        
+        # Find Finance Manager and CEO
+        finance_manager = await get_finance_manager(session, country_code)
+        ceo = await get_ceo(session, country_code)
+        
+        if not finance_manager:
+            raise BadRequestException("Finance Manager not found. Cannot create approval chain.")
+        if not ceo:
+            raise BadRequestException("CEO (Admin) not found. Cannot create approval chain.")
+        
         # Update status
         payroll.status = PayrollStatus.PENDING_FINANCE
         payroll.updated_at = datetime.utcnow()
-        
         await session.commit()
-        await session.refresh(payroll)
         
+        # Create approval chain: Finance Manager → CEO
+        approval_service = ApprovalService(session)
+        
+        # First approval: Finance Manager
+        approval_data = ApprovalRequestCreate(
+            request_type=ApprovalType.PAYROLL,
+            request_id=payroll.id,
+            employee_id=hr_employee.id,  # HR Manager who initiated
+            comments=f"Payroll for {payroll.year}-{payroll.month:02d}"
+        )
+        
+        finance_approval = await approval_service.create_approval_request(
+            approval_data,
+            finance_manager.id,
+            country_code=country_code,
+            approval_level=1,
+            is_final_approval=False
+        )
+        
+        # Second approval: CEO
+        ceo_approval = await approval_service.create_approval_request(
+            approval_data,
+            ceo.id,
+            country_code=country_code,
+            approval_level=2,
+            previous_approval_id=finance_approval.id,
+            is_final_approval=True
+        )
+        
+        # Send notification to Finance Manager
+        from core.email import email_service
+        if finance_manager.email:
+            await email_service.send_approval_request_notification(
+                to_email=finance_manager.email,
+                employee_name=f"{hr_employee.first_name} {hr_employee.last_name}",
+                request_type="payroll",
+                request_details={
+                    "Period": f"{payroll.year}-{payroll.month:02d}",
+                    "Total Net Salary": str(payroll.total_net_salary),
+                    "Total Employees": str(len(payroll.entries))
+                }
+            )
+        
+        await session.refresh(payroll)
         return payroll
     
     @staticmethod
@@ -328,34 +432,63 @@ class PayrollService:
         payroll_id: str,
         user_id: str,
         approved: bool,
-        comments: Optional[str] = None
+        comments: Optional[str] = None,
+        approval_id: Optional[uuid.UUID] = None
     ) -> Payroll:
-        """Finance Manager approves or rejects payroll"""
+        """
+        Finance Manager approves or rejects payroll
+        If approved, automatically forwards to CEO
+        """
+        from modules.approvals.services import ApprovalService
+        from modules.approvals.models import ApprovalType, ApprovalStatus
+        from modules.employees.models import Employee
+        from modules.employees.repositories import EmployeeRepository
+        from sqlalchemy import select
         
         payroll = await PayrollService.get_payroll(session, payroll_id)
         
         if payroll.status != PayrollStatus.PENDING_FINANCE:
             raise BadRequestException("Payroll is not pending Finance approval")
         
-        # Create approval record
-        approval = PayrollApproval(
-            id=uuid.uuid4(),
-            payroll_id=payroll.id,
-            approver_role="finance_manager",
-            approver_id=uuid.UUID(user_id),
-            approved="true" if approved else "false",
-            decision_date=datetime.utcnow(),
-            comments=comments,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        session.add(approval)
+        # Get employee for user
+        employee_repo = EmployeeRepository(session)
+        finance_employee = await employee_repo.get_by_user_id(user_id)
+        if not finance_employee:
+            raise BadRequestException("Finance Manager employee record not found")
         
-        # Update payroll status
-        if approved:
-            payroll.status = PayrollStatus.PENDING_CEO
+        # Get approval request
+        approval_service = ApprovalService(session)
+        if not approval_id:
+            approval = await approval_service.get_approval_by_request(ApprovalType.PAYROLL, payroll.id)
+            if not approval:
+                raise BadRequestException("Approval request not found for this payroll")
+            approval_id = approval.id
         else:
+            approval = await approval_service.get_approval_request(approval_id)
+        
+        # Approve or reject through approval system
+        if approved:
+            await approval_service.approve_request(approval_id, finance_employee.id, comments)
+            payroll.status = PayrollStatus.PENDING_CEO
+            payroll.finance_reviewed_at = datetime.utcnow()
+            payroll.finance_reviewed_by_id = uuid.UUID(user_id)
+        else:
+            await approval_service.reject_request(approval_id, finance_employee.id, comments)
             payroll.status = PayrollStatus.REJECTED
+            
+            # Notify HR Manager
+            from core.email import email_service
+            hr_result = await session.execute(
+                select(Employee).where(Employee.user_id == payroll.created_by_id)
+            )
+            hr_employee = hr_result.scalar_one_or_none()
+            if hr_employee and hr_employee.email:
+                await email_service.send_approval_status_notification(
+                    to_email=hr_employee.email,
+                    request_type="payroll",
+                    status="rejected",
+                    comments=comments
+                )
         
         payroll.updated_at = datetime.utcnow()
         
@@ -370,34 +503,86 @@ class PayrollService:
         payroll_id: str,
         user_id: str,
         approved: bool,
-        comments: Optional[str] = None
+        comments: Optional[str] = None,
+        approval_id: Optional[uuid.UUID] = None
     ) -> Payroll:
-        """CEO approves or rejects payroll"""
+        """
+        CEO approves or rejects payroll
+        If approved, status changes to APPROVED and goes back to Finance/HR for processing
+        """
+        from modules.approvals.services import ApprovalService
+        from modules.approvals.models import ApprovalType
+        from modules.employees.models import Employee
+        from modules.employees.repositories import EmployeeRepository
+        from sqlalchemy import select
         
         payroll = await PayrollService.get_payroll(session, payroll_id)
         
         if payroll.status != PayrollStatus.PENDING_CEO:
             raise BadRequestException("Payroll is not pending CEO approval")
         
-        # Create approval record
-        approval = PayrollApproval(
-            id=uuid.uuid4(),
-            payroll_id=payroll.id,
-            approver_role="ceo",
-            approver_id=uuid.UUID(user_id),
-            approved="true" if approved else "false",
-            decision_date=datetime.utcnow(),
-            comments=comments,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        session.add(approval)
+        # Get employee for user
+        employee_repo = EmployeeRepository(session)
+        ceo_employee = await employee_repo.get_by_user_id(user_id)
+        if not ceo_employee:
+            raise BadRequestException("CEO employee record not found")
         
-        # Update payroll status
-        if approved:
-            payroll.status = PayrollStatus.APPROVED
+        # Get approval request (should be the final one - level 2)
+        approval_service = ApprovalService(session)
+        if not approval_id:
+            approval = await approval_service.get_approval_by_request(ApprovalType.PAYROLL, payroll.id)
+            if not approval:
+                raise BadRequestException("Approval request not found for this payroll")
+            # Get the final approval (level 2 - CEO)
+            all_approvals = await approval_service.approval_repo.get_all_approvals_for_request(
+                ApprovalType.PAYROLL, payroll.id
+            )
+            ceo_approval = next((a for a in all_approvals if a.approval_level == 2), None)
+            if not ceo_approval:
+                raise BadRequestException("CEO approval request not found")
+            approval_id = ceo_approval.id
         else:
+            ceo_approval = await approval_service.get_approval_request(approval_id)
+        
+        # Approve or reject through approval system
+        if approved:
+            await approval_service.approve_request(approval_id, ceo_employee.id, comments)
+            payroll.status = PayrollStatus.APPROVED
+            payroll.ceo_approved_at = datetime.utcnow()
+            payroll.ceo_approved_by_id = uuid.UUID(user_id)
+            
+            # Notify Finance Manager and HR Manager that it's approved and ready for processing
+            from core.email import email_service
+            from core.role_helpers import get_finance_manager, get_hr_manager
+            
+            finance_manager = await get_finance_manager(session, payroll.country_code)
+            hr_manager = await get_hr_manager(session, payroll.country_code)
+            
+            for manager in [finance_manager, hr_manager]:
+                if manager and manager.email:
+                    await email_service.send_approval_status_notification(
+                        to_email=manager.email,
+                        request_type="payroll",
+                        status="approved",
+                        comments=f"Payroll approved by CEO. Ready for processing."
+                    )
+        else:
+            await approval_service.reject_request(approval_id, ceo_employee.id, comments)
             payroll.status = PayrollStatus.REJECTED
+            
+            # Notify HR Manager and Finance Manager
+            from core.email import email_service
+            hr_result = await session.execute(
+                select(Employee).where(Employee.user_id == payroll.created_by_id)
+            )
+            hr_employee = hr_result.scalar_one_or_none()
+            if hr_employee and hr_employee.email:
+                await email_service.send_approval_status_notification(
+                    to_email=hr_employee.email,
+                    request_type="payroll",
+                    status="rejected",
+                    comments=comments
+                )
         
         payroll.updated_at = datetime.utcnow()
         
@@ -450,35 +635,39 @@ class PayrollService:
     @staticmethod
     async def get_payroll_stats(
         session: AsyncSession,
-        user_id: str
+        user_id: str,
+        country_code: Optional[str] = None
     ) -> dict:
-        """Get payroll statistics for dashboard"""
+        """Get payroll statistics for dashboard (tenant-aware)"""
         
         current_year = datetime.utcnow().year
         current_month = datetime.utcnow().month
         
+        # Build base filters
+        base_filters = [Payroll.is_deleted == False]
+        if country_code:
+            base_filters.append(Payroll.country_code == country_code)
+        
         # Total payrolls
-        total_query = select(func.count()).select_from(Payroll).where(
-            Payroll.is_deleted == False
-        )
+        total_query = select(func.count()).select_from(Payroll).where(*base_filters)
         total_payrolls = await session.scalar(total_query)
         
         # Pending counts
         pending_finance_query = select(func.count()).select_from(Payroll).where(
             Payroll.status == PayrollStatus.PENDING_FINANCE,
-            Payroll.is_deleted == False
+            *base_filters
         )
         pending_finance = await session.scalar(pending_finance_query)
         
         pending_ceo_query = select(func.count()).select_from(Payroll).where(
             Payroll.status == PayrollStatus.PENDING_CEO,
-            Payroll.is_deleted == False
+            *base_filters
         )
         pending_ceo = await session.scalar(pending_ceo_query)
         
         approved_query = select(func.count()).select_from(Payroll).where(
             Payroll.status == PayrollStatus.APPROVED,
-            Payroll.is_deleted == False
+            *base_filters
         )
         approved = await session.scalar(approved_query)
         
@@ -486,14 +675,14 @@ class PayrollService:
         month_amount_query = select(func.sum(Payroll.total_net_salary)).where(
             Payroll.year == current_year,
             Payroll.month == current_month,
-            Payroll.is_deleted == False
+            *base_filters
         )
         month_amount = await session.scalar(month_amount_query) or Decimal('0')
         
         # Total amount this year
         year_amount_query = select(func.sum(Payroll.total_net_salary)).where(
             Payroll.year == current_year,
-            Payroll.is_deleted == False
+            *base_filters
         )
         year_amount = await session.scalar(year_amount_query) or Decimal('0')
         

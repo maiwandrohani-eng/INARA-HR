@@ -2,15 +2,18 @@
 Approval Workflow Module - API Routes
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from typing import List, Optional
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.dependencies import get_db, get_current_user, require_hr_admin
+from core.dependencies import get_db, get_current_user, get_current_active_user, require_hr_admin
 from core.exceptions import NotFoundException, BadRequestException
 from modules.auth.models import User
+from modules.employees.models import Employee
+from sqlalchemy import select
+import uuid as uuid_lib
 from modules.approvals.services import ApprovalService
 from modules.approvals.schemas import (
     ApprovalRequestCreate, ApprovalRequestUpdate, ApprovalRequestResponse,
@@ -70,41 +73,43 @@ async def get_approval_by_request(
 @router.get("/pending", response_model=List[ApprovalRequestResponse])
 async def get_pending_approvals(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Get all pending approvals for current user (as approver)"""
     service = ApprovalService(db)
-    # Assuming current_user has employee relationship
-    if not current_user.employee:
+    employee_id = current_user.get("employee_id")
+    if not employee_id:
         return []
-    return await service.get_pending_approvals(current_user.employee.id)
+    return await service.get_pending_approvals(uuid_lib.UUID(employee_id))
 
 
 @router.get("/my-requests", response_model=List[ApprovalRequestResponse])
 async def get_my_requests(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Get all approval requests submitted by current user"""
     service = ApprovalService(db)
-    if not current_user.employee:
+    employee_id = current_user.get("employee_id")
+    if not employee_id:
         return []
-    return await service.get_employee_requests(current_user.employee.id)
+    return await service.get_employee_requests(uuid_lib.UUID(employee_id))
 
 
 @router.post("/requests/{approval_id}/approve", response_model=ApprovalRequestResponse)
 async def approve_request(
     approval_id: uuid.UUID,
-    comments: str = None,
+    comments: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Approve a request"""
     service = ApprovalService(db)
-    if not current_user.employee:
+    employee_id = current_user.get("employee_id")
+    if not employee_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No employee record found")
     try:
-        return await service.approve_request(approval_id, current_user.employee.id, comments)
+        return await service.approve_request(approval_id, uuid_lib.UUID(employee_id), comments)
     except (NotFoundException, BadRequestException) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -112,16 +117,17 @@ async def approve_request(
 @router.post("/requests/{approval_id}/reject", response_model=ApprovalRequestResponse)
 async def reject_request(
     approval_id: uuid.UUID,
-    comments: str = None,
+    comments: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Reject a request"""
     service = ApprovalService(db)
-    if not current_user.employee:
+    employee_id = current_user.get("employee_id")
+    if not employee_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No employee record found")
     try:
-        return await service.reject_request(approval_id, current_user.employee.id, comments)
+        return await service.reject_request(approval_id, uuid_lib.UUID(employee_id), comments)
     except (NotFoundException, BadRequestException) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -130,14 +136,15 @@ async def reject_request(
 async def cancel_request(
     approval_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Cancel a pending request"""
     service = ApprovalService(db)
-    if not current_user.employee:
+    employee_id = current_user.get("employee_id")
+    if not employee_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No employee record found")
     try:
-        return await service.cancel_request(approval_id, current_user.employee.id)
+        return await service.cancel_request(approval_id, uuid_lib.UUID(employee_id))
     except (NotFoundException, BadRequestException) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -145,11 +152,12 @@ async def cancel_request(
 @router.get("/stats", response_model=ApprovalStats)
 async def get_approval_stats(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Get approval statistics for dashboard"""
     service = ApprovalService(db)
-    if not current_user.employee:
+    employee_id = current_user.get("employee_id")
+    if not employee_id:
         return ApprovalStats(
             total_pending=0,
             leave_pending=0,
@@ -157,7 +165,7 @@ async def get_approval_stats(
             timesheet_pending=0,
             performance_pending=0
         )
-    return await service.get_approval_stats(current_user.employee.id)
+    return await service.get_approval_stats(uuid_lib.UUID(employee_id))
 
 
 # Delegation endpoints

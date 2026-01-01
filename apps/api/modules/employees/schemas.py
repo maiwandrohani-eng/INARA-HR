@@ -29,10 +29,27 @@ class EmployeeCreate(EmployeeBase):
     employee_number: Optional[str] = None  # Auto-generated if not provided
     employment_type: str
     hire_date: date
+    probation_end_date: Optional[date] = None
     department_id: Optional[uuid.UUID] = None
     position_id: Optional[uuid.UUID] = None
     manager_id: Optional[uuid.UUID] = None
     work_location: Optional[str] = None
+    
+    # Identity documents
+    national_id: Optional[str] = None
+    passport_number: Optional[str] = None
+    
+    # Emergency contact
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    emergency_contact_relationship: Optional[str] = None
+    
+    # Contract details (optional - will create contract if provided)
+    salary: Optional[Decimal] = None
+    currency: Optional[str] = "USD"
+    contract_type: Optional[str] = None
+    contract_start_date: Optional[date] = None
+    contract_end_date: Optional[date] = None
 
 
 class EmployeeUpdate(BaseModel):

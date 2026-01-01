@@ -275,6 +275,26 @@ class PerformanceService:
         review_cycle.status = "completed"
         
         await self.db.commit()
+        
+        # Send notification to employee that appraisal is finalized
+        employee_result = await self.db.execute(
+            select(Employee).where(Employee.id == review_cycle.employee_id)
+        )
+        employee = employee_result.scalar_one_or_none()
+        
+        if employee and employee.email:
+            from core.email import email_service
+            await email_service.send_email(
+                to_email=employee.email,
+                subject="Performance Appraisal Completed",
+                html_body=f"""
+                <p>Dear {employee.first_name},</p>
+                <p>Your performance appraisal for the period {review_cycle.review_period_start} to {review_cycle.review_period_end} has been completed and finalized.</p>
+                <p><strong>Final Rating:</strong> {final_rating}/5</p>
+                <p>You can view and download your appraisal from your dashboard. The appraisal has been added to your personnel file.</p>
+                """
+            )
+        
         await self.db.refresh(review_cycle)
         
         return PerformanceReviewCycleResponse.model_validate(review_cycle)
@@ -388,4 +408,24 @@ class PerformanceService:
                 if review_cycle:
                     review_cycle.final_rating = avg_rating
                     # Keep status as in_progress until HR finalizes
+                    
+                    # Send notification to employee that all evaluations are complete
+                    employee_result = await self.db.execute(
+                        select(Employee).where(Employee.id == review_cycle.employee_id)
+                    )
+                    employee = employee_result.scalar_one_or_none()
+                    
+                    if employee and employee.email:
+                        from core.email import email_service
+                        await email_service.send_email(
+                            to_email=employee.email,
+                            subject="Performance Appraisal Completed",
+                            html_body=f"""
+                            <p>Dear {employee.first_name},</p>
+                            <p>Your performance appraisal for the period {review_cycle.review_period_start} to {review_cycle.review_period_end} has been completed.</p>
+                            <p>You can view and download your appraisal from your dashboard.</p>
+                            <p>The appraisal has been added to your personnel file.</p>
+                            """
+                        )
+                    
                     await self.db.commit()

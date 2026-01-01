@@ -25,7 +25,7 @@ class PayrollPDFGenerator:
     
     def __init__(self):
         self.styles = getSampleStyleSheet()
-        self.logo_path = Path(__file__).parent.parent.parent / "static" / "inara-logo.png"
+        self.logo_path = Path(__file__).parent.parent.parent / "static" / "inara-logo-pdf.png"
         
     def generate_payslip(self, payroll: Payroll, entry: PayrollEntry) -> bytes:
         """Generate a single payslip PDF for an employee"""
@@ -46,7 +46,8 @@ class PayrollPDFGenerator:
         
         # Add logo if exists
         if self.logo_path.exists():
-            logo = Image(str(self.logo_path), width=2*inch, height=0.8*inch)
+            logo = Image(str(self.logo_path), width=1.5*inch, height=1.5*inch)
+            logo._restrictSize(1.5*inch, 1.5*inch)
             story.append(logo)
             story.append(Spacer(1, 0.3*inch))
         
@@ -164,7 +165,8 @@ class PayrollPDFGenerator:
         
         # Title
         if self.logo_path.exists():
-            logo = Image(str(self.logo_path), width=2*inch, height=0.8*inch)
+            logo = Image(str(self.logo_path), width=1.5*inch, height=1.5*inch)
+            logo._restrictSize(1.5*inch, 1.5*inch)
             story.append(logo)
             story.append(Spacer(1, 0.2*inch))
         

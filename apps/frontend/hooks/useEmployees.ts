@@ -10,6 +10,7 @@ export interface Employee {
   mobile?: string
   department_id?: string
   position_id?: string
+  manager_id?: string
   work_location?: string
   status: string
   employment_type: string

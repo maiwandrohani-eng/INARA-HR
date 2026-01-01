@@ -34,6 +34,13 @@ class EmployeeService:
         # Auto-generate employee number if not provided
         employee_dict = employee_data.model_dump()
         
+        # Extract contract-related fields (not part of Employee model)
+        contract_salary = employee_dict.pop('salary', None)
+        contract_currency = employee_dict.pop('currency', 'USD')
+        contract_type = employee_dict.pop('contract_type', None)
+        contract_start_date = employee_dict.pop('contract_start_date', None)
+        contract_end_date = employee_dict.pop('contract_end_date', None)
+        
         if not employee_dict.get('employee_number'):
             # Get all employee numbers matching pattern
             from sqlalchemy import select
@@ -60,9 +67,53 @@ class EmployeeService:
             else:
                 employee_dict['employee_number'] = 'EMP-001'
         
-        # TODO: Create associated user account
+        # Create employee
         employee = await self.employee_repo.create(employee_dict)
         await self.db.commit()
+        await self.db.refresh(employee)
+        
+        # Create contract if salary is provided
+        if contract_salary and contract_salary > 0:
+            from modules.employees.models import Contract
+            from datetime import datetime
+            
+            # Auto-generate contract number
+            contract_count = await self.db.execute(
+                select(Contract.contract_number)
+                .where(Contract.contract_number.like('CON-%'))
+            )
+            contract_numbers = contract_count.scalars().all()
+            
+            if contract_numbers:
+                max_num = 0
+                for con_num in contract_numbers:
+                    try:
+                        num = int(con_num.split('-')[1])
+                        if num > max_num:
+                            max_num = num
+                    except (IndexError, ValueError):
+                        continue
+                contract_number = f'CON-{max_num + 1:04d}'
+            else:
+                contract_number = 'CON-0001'
+            
+            # Create contract
+            contract = Contract(
+                employee_id=employee.id,
+                contract_number=contract_number,
+                contract_type=contract_type or 'Permanent',
+                start_date=contract_start_date or employee.hire_date,
+                end_date=contract_end_date,
+                salary=contract_salary,
+                currency=contract_currency,
+                salary_frequency='monthly',
+                is_active='true',
+                country_code=employee.country_code or 'AF'
+            )
+            
+            self.db.add(contract)
+            await self.db.commit()
+        
         return employee
     
     async def update_employee(self, employee_id: uuid.UUID, employee_data: EmployeeUpdate):

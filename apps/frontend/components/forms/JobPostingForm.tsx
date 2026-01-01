@@ -47,41 +47,76 @@ export function JobPostingForm({ open, onOpenChange }: JobPostingFormProps) {
     setLoading(true)
 
     try {
-      const jobData = {
-        job_title: jobTitle,
-        department: department,
-        location: location,
-        employment_type: employmentType,
-        salary_range: salaryRange,
-        closing_date: closingDate,
+      // Parse salary range if provided (e.g., "$45,000 - $55,000" or "45000-55000")
+      let salaryMin: string | undefined = undefined
+      let salaryMax: string | undefined = undefined
+      if (salaryRange) {
+        const cleaned = salaryRange.replace(/[$,]/g, '').trim()
+        const parts = cleaned.split(/-|to/).map(p => p.trim())
+        if (parts.length >= 2) {
+          salaryMin = parts[0]
+          salaryMax = parts[1]
+        } else if (parts.length === 1) {
+          salaryMin = parts[0]
+        }
+      }
+
+      // Map frontend fields to backend schema
+      const jobData: any = {
+        title: jobTitle,
         description: description,
-        responsibilities: responsibilities,
-        qualifications: qualifications,
-        benefits: benefits,
-        how_to_apply: howToApply,
-        status: 'open',
+        responsibilities: responsibilities || undefined,
+        requirements: qualifications || undefined, // Backend uses "requirements" instead of "qualifications"
+        employment_type: employmentType,
+        location: location || undefined,
+        salary_range_min: salaryMin,
+        salary_range_max: salaryMax,
+        currency: 'USD', // Default currency
+      }
+      
+      // Only include closing_date if provided and valid
+      if (closingDate) {
+        // Ensure date is in YYYY-MM-DD format
+        jobData.closing_date = closingDate
       }
 
-      const token = localStorage.getItem('access_token')
-      const response = await fetch('http://localhost:8000/api/v1/jobs/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(jobData),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create job posting')
+      // Use API client instead of direct fetch
+      const { api } = await import('@/lib/api-client')
+      
+      console.log('Creating job posting with data:', jobData)
+      
+      try {
+        const response = await api.post('/recruitment/postings', jobData)
+        console.log('Job posting created successfully:', response)
+        alert('Job posting created successfully!')
+        onOpenChange(false)
+        resetForm()
+        // Trigger a custom event to notify parent to refresh
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('jobPostingCreated'))
+        }
+      } catch (apiError: any) {
+        console.error('API Error details:', {
+          message: apiError.message,
+          response: apiError.response?.data,
+          status: apiError.response?.status,
+          config: apiError.config
+        })
+        throw apiError // Re-throw to be caught by outer catch
       }
-
-      alert('Job posting created successfully!')
-      onOpenChange(false)
-      resetForm()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating job posting:', error)
-      alert('Failed to create job posting. Please try again.')
+      let errorMsg = 'Unknown error'
+      
+      if (error.response?.data) {
+        // Axios error with response
+        errorMsg = error.response.data.detail || error.response.data.message || JSON.stringify(error.response.data)
+      } else if (error.message) {
+        // Other error with message
+        errorMsg = error.message
+      }
+      
+      alert(`Failed to create job posting: ${errorMsg}`)
     } finally {
       setLoading(false)
     }

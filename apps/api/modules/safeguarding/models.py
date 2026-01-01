@@ -30,6 +30,8 @@ class SafeguardingCase(BaseModel, TenantMixin, AuditMixin, Base):
     # Case Information
     description = Column(Text, nullable=False)
     location = Column(String(255), nullable=True)
+    involved_persons = Column(Text, nullable=True)  # Names of people involved
+    witnesses = Column(Text, nullable=True)  # Names of witnesses
     
     # Investigation
     investigator_id = Column(UUID(as_uuid=True), ForeignKey('employees.id'), nullable=True)

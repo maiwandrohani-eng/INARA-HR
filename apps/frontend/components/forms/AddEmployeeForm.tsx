@@ -71,6 +71,21 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
   const [positionId, setPositionId] = useState('')
   const [departmentId, setDepartmentId] = useState('')
   const [managerId, setManagerId] = useState('')
+  
+  // Contract & Compensation
+  const [salary, setSalary] = useState('')
+  const [currency, setCurrency] = useState('USD')
+  const [contractType, setContractType] = useState('')
+  const [contractStartDate, setContractStartDate] = useState('')
+  const [contractEndDate, setContractEndDate] = useState('')
+  const [probationEndDate, setProbationEndDate] = useState('')
+  
+  // Additional Details
+  const [nationalId, setNationalId] = useState('')
+  const [passportNumber, setPassportNumber] = useState('')
+  const [emergencyContactName, setEmergencyContactName] = useState('')
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState('')
+  const [emergencyContactRelationship, setEmergencyContactRelationship] = useState('')
 
   // Data for dropdowns
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -90,20 +105,14 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
 
   const fetchEmployees = async () => {
     try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
       const token = localStorage.getItem('access_token')
-      console.log('Fetching employees for manager dropdown...')
-      const response = await fetch('http://localhost:8000/api/v1/employees/', {
+      const response = await fetch(`${baseUrl}/employees/`, {
         headers: { 'Authorization': `Bearer ${token}` },
       })
-      console.log('Employees fetch response status:', response.status)
       if (response.ok) {
         const data = await response.json()
-        console.log('Employees fetched for dropdown:', data.length, 'employees')
-        console.log('Employee data:', data)
         setEmployees(data)
-      } else {
-        const error = await response.text()
-        console.error('Failed to fetch employees:', response.status, error)
       }
     } catch (error) {
       console.error('Error fetching employees:', error)
@@ -168,7 +177,7 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
       }
 
       const employeeData = {
-        employee_number: employeeNumber || null,  // Let backend auto-generate if empty
+        employee_number: employeeNumber || null,
         first_name: firstName,
         last_name: lastName,
         work_email: workEmail,
@@ -177,17 +186,28 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
         date_of_birth: dateOfBirth || null,
         gender: gender || null,
         nationality: nationality || null,
+        national_id: nationalId || null,
+        passport_number: passportNumber || null,
         country_code: countryCode || null,
         employment_type: employmentType,
         hire_date: hireDate,
+        probation_end_date: probationEndDate || null,
         work_location: workLocation || null,
         position_id: positionId || null,
         department_id: departmentId || null,
         manager_id: managerId && managerId !== 'none' ? managerId : null,
+        emergency_contact_name: emergencyContactName || null,
+        emergency_contact_phone: emergencyContactPhone || null,
+        emergency_contact_relationship: emergencyContactRelationship || null,
+        // Contract details (if provided, backend will create contract)
+        salary: salary ? parseFloat(salary) : null,
+        currency: currency || 'USD',
+        contract_type: contractType || null,
+        contract_start_date: contractStartDate || null,
+        contract_end_date: contractEndDate || null,
       }
 
       const token = localStorage.getItem('access_token')
-      console.log('Creating employee with token:', token ? 'Token exists' : 'No token found')
       
       const response = await fetch('http://localhost:8000/api/v1/employees/', {
         method: 'POST',
@@ -197,13 +217,9 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
         },
         body: JSON.stringify(employeeData),
       })
-
-      console.log('Response status:', response.status)
       
       if (!response.ok) {
         const error = await response.json()
-        console.error('Error response:', error)
-        console.error('Full error details:', JSON.stringify(error, null, 2))
         throw new Error(error.detail || error.error?.message || 'Failed to add employee')
       }
 
@@ -240,6 +256,17 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
     setPositionId('')
     setDepartmentId('')
     setManagerId('')
+    setSalary('')
+    setCurrency('USD')
+    setContractType('')
+    setContractStartDate('')
+    setContractEndDate('')
+    setProbationEndDate('')
+    setNationalId('')
+    setPassportNumber('')
+    setEmergencyContactName('')
+    setEmergencyContactPhone('')
+    setEmergencyContactRelationship('')
   }
 
   return (
@@ -263,11 +290,8 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
                 id="employee-number"
                 value={employeeNumber}
                 onChange={(e) => setEmployeeNumber(e.target.value)}
-                placeholder="Leave empty for auto-generation (EMP-001, EMP-002, etc.)"
+                placeholder="Leave empty for auto-generation"
               />
-              <p className="text-xs text-gray-500">
-                Leave blank to auto-generate the next available employee number
-              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -277,7 +301,6 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
                   id="first-name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="John"
                   required
                 />
               </div>
@@ -288,7 +311,6 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
                   id="last-name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Doe"
                   required
                 />
               </div>
@@ -296,10 +318,7 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="dob" className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Date of Birth
-                </Label>
+                <Label htmlFor="dob">Date of Birth</Label>
                 <Input
                   id="dob"
                   type="date"
@@ -318,7 +337,6 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
                     <SelectItem value="male">Male</SelectItem>
                     <SelectItem value="female">Female</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
-                    <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -326,43 +344,21 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="nationality">Nationality</Label>
-                <Select value={nationality} onValueChange={setNationality}>
-                  <SelectTrigger id="nationality">
-                    <SelectValue placeholder="Select nationality" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {countries.length > 0 ? (
-                      countries.map((country) => (
-                        <SelectItem key={country.country_code} value={country.country_code}>
-                          {country.country_name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="none" disabled>No countries configured</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="national-id">National ID</Label>
+                <Input
+                  id="national-id"
+                  value={nationalId}
+                  onChange={(e) => setNationalId(e.target.value)}
+                />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="country-code">Country</Label>
-                <Select value={countryCode} onValueChange={setCountryCode}>
-                  <SelectTrigger id="country-code">
-                    <SelectValue placeholder="Select country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {countries.length > 0 ? (
-                      countries.map((country) => (
-                        <SelectItem key={country.country_code} value={country.country_code}>
-                          {country.country_code} - {country.country_name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="none" disabled>No countries configured</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="passport">Passport Number</Label>
+                <Input
+                  id="passport"
+                  value={passportNumber}
+                  onChange={(e) => setPassportNumber(e.target.value)}
+                />
               </div>
             </div>
           </div>
@@ -378,7 +374,6 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
                 type="email"
                 value={workEmail}
                 onChange={(e) => setWorkEmail(e.target.value)}
-                placeholder="john.doe@inara.org"
                 required
               />
             </div>
@@ -391,7 +386,6 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 234 567 8900"
                 />
               </div>
 
@@ -402,7 +396,41 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
                   type="tel"
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
-                  placeholder="+1 234 567 8900"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Emergency Contact */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Emergency Contact</h3>
+            
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="emergency-name">Contact Name</Label>
+                <Input
+                  id="emergency-name"
+                  value={emergencyContactName}
+                  onChange={(e) => setEmergencyContactName(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="emergency-phone">Contact Phone</Label>
+                <Input
+                  id="emergency-phone"
+                  type="tel"
+                  value={emergencyContactPhone}
+                  onChange={(e) => setEmergencyContactPhone(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="emergency-relationship">Relationship</Label>
+                <Input
+                  id="emergency-relationship"
+                  value={emergencyContactRelationship}
+                  onChange={(e) => setEmergencyContactRelationship(e.target.value)}
                 />
               </div>
             </div>
@@ -423,18 +451,12 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
                     <SelectItem value="FULL_TIME">Full Time</SelectItem>
                     <SelectItem value="PART_TIME">Part Time</SelectItem>
                     <SelectItem value="CONTRACT">Contract</SelectItem>
-                    <SelectItem value="CONSULTANT">Consultant</SelectItem>
-                    <SelectItem value="INTERN">Intern</SelectItem>
-                    <SelectItem value="VOLUNTEER">Volunteer</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="hire-date" className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Hire Date *
-                </Label>
+                <Label htmlFor="hire-date">Hire Date *</Label>
                 <Input
                   id="hire-date"
                   type="date"
@@ -453,31 +475,23 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
-                    {departments.length === 0 ? (
-                      <SelectItem value="none" disabled>No departments available</SelectItem>
-                    ) : (
-                      departments.map(dept => (
-                        <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
-                      ))
-                    )}
+                    {departments.map(dept => (
+                      <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="position">Position/Title</Label>
+                <Label htmlFor="position">Position</Label>
                 <Select value={positionId} onValueChange={setPositionId}>
                   <SelectTrigger id="position">
                     <SelectValue placeholder="Select position" />
                   </SelectTrigger>
                   <SelectContent>
-                    {positions.length === 0 ? (
-                      <SelectItem value="none" disabled>No positions available</SelectItem>
-                    ) : (
-                      positions.map(pos => (
-                        <SelectItem key={pos.id} value={pos.id}>{pos.title}</SelectItem>
-                      ))
-                    )}
+                    {positions.map(pos => (
+                      <SelectItem key={pos.id} value={pos.id}>{pos.title}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -485,7 +499,7 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="manager">Manager/Supervisor</Label>
+                <Label htmlFor="manager">Line Manager / Supervisor</Label>
                 <Select value={managerId} onValueChange={setManagerId}>
                   <SelectTrigger id="manager">
                     <SelectValue placeholder="Select manager" />
@@ -500,44 +514,186 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500">
-                  The person who will approve this employee's leave requests
+                  Manager who will approve leave requests, performance appraisals, and review attendance
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="work-location">Work Location</Label>
-                <Select value={workLocation} onValueChange={setWorkLocation}>
-                  <SelectTrigger id="work-location">
-                    <SelectValue placeholder="Select location" />
+                <Label htmlFor="work-country">Work Country</Label>
+                <Select value={countryCode} onValueChange={(value) => {
+                  setCountryCode(value)
+                  setWorkLocation('') // Clear city when country changes
+                }}>
+                  <SelectTrigger id="work-country">
+                    <SelectValue placeholder="Select country" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Kabul">Kabul, Afghanistan</SelectItem>
-                    <SelectItem value="Beirut">Beirut, Lebanon</SelectItem>
-                    <SelectItem value="Cairo">Cairo, Egypt</SelectItem>
-                    <SelectItem value="Gaza">Gaza, Palestine</SelectItem>
-                    <SelectItem value="Damascus">Damascus, Syria</SelectItem>
-                    <SelectItem value="Istanbul">Istanbul, Turkey</SelectItem>
-                    <SelectItem value="London">London, United Kingdom</SelectItem>
+                    {countries.length > 0 ? (
+                      countries.map((country) => (
+                        <SelectItem key={country.country_code} value={country.country_code}>
+                          {country.country_name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>No countries configured</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="work-location">Work City</Label>
+                <Select value={workLocation} onValueChange={setWorkLocation}>
+                  <SelectTrigger id="work-location">
+                    <SelectValue placeholder="Select city" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countryCode === 'AF' && (
+                      <>
+                        <SelectItem value="Kabul">Kabul</SelectItem>
+                        <SelectItem value="Herat">Herat</SelectItem>
+                        <SelectItem value="Kandahar">Kandahar</SelectItem>
+                        <SelectItem value="Mazar-i-Sharif">Mazar-i-Sharif</SelectItem>
+                        <SelectItem value="Jalalabad">Jalalabad</SelectItem>
+                      </>
+                    )}
+                    {countryCode === 'LB' && (
+                      <>
+                        <SelectItem value="Beirut">Beirut</SelectItem>
+                        <SelectItem value="Tripoli">Tripoli</SelectItem>
+                        <SelectItem value="Sidon">Sidon</SelectItem>
+                        <SelectItem value="Tyre">Tyre</SelectItem>
+                      </>
+                    )}
+                    {countryCode === 'EG' && (
+                      <>
+                        <SelectItem value="Cairo">Cairo</SelectItem>
+                        <SelectItem value="Alexandria">Alexandria</SelectItem>
+                        <SelectItem value="Giza">Giza</SelectItem>
+                      </>
+                    )}
+                    {countryCode === 'PS' && (
+                      <>
+                        <SelectItem value="Gaza">Gaza</SelectItem>
+                        <SelectItem value="Ramallah">Ramallah</SelectItem>
+                        <SelectItem value="Hebron">Hebron</SelectItem>
+                        <SelectItem value="Nablus">Nablus</SelectItem>
+                      </>
+                    )}
+                    {countryCode === 'SY' && (
+                      <>
+                        <SelectItem value="Damascus">Damascus</SelectItem>
+                        <SelectItem value="Aleppo">Aleppo</SelectItem>
+                        <SelectItem value="Homs">Homs</SelectItem>
+                      </>
+                    )}
+                    {countryCode === 'TR' && (
+                      <>
+                        <SelectItem value="Istanbul">Istanbul</SelectItem>
+                        <SelectItem value="Ankara">Ankara</SelectItem>
+                        <SelectItem value="Izmir">Izmir</SelectItem>
+                      </>
+                    )}
+                    {countryCode === 'GB' && (
+                      <>
+                        <SelectItem value="London">London</SelectItem>
+                        <SelectItem value="Manchester">Manchester</SelectItem>
+                        <SelectItem value="Birmingham">Birmingham</SelectItem>
+                      </>
+                    )}
+                    {!countryCode && (
+                      <SelectItem value="none" disabled>Please select a country first</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
             </div>
           </div>
 
-          <DialogFooter className="gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
+          {/* Contract & Compensation */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Contract & Compensation</h3>
+            
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="salary">Monthly Salary</Label>
+                <Input
+                  id="salary"
+                  type="number"
+                  step="0.01"
+                  value={salary}
+                  onChange={(e) => setSalary(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency</Label>
+                <Select value={currency} onValueChange={setCurrency}>
+                  <SelectTrigger id="currency">
+                    <SelectValue placeholder="Currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="AFN">AFN</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="contract-type">Contract Type</Label>
+                <Select value={contractType} onValueChange={setContractType}>
+                  <SelectTrigger id="contract-type">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Permanent">Permanent</SelectItem>
+                    <SelectItem value="Fixed-Term">Fixed-Term</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="contract-start">Contract Start Date</Label>
+                <Input
+                  id="contract-start"
+                  type="date"
+                  value={contractStartDate}
+                  onChange={(e) => setContractStartDate(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="contract-end">Contract End Date</Label>
+                <Input
+                  id="contract-end"
+                  type="date"
+                  value={contractEndDate}
+                  onChange={(e) => setContractEndDate(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="probation-end">Probation End Date</Label>
+                <Input
+                  id="probation-end"
+                  type="date"
+                  value={probationEndDate}
+                  onChange={(e) => setProbationEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={loading}
-              className="bg-gradient-to-r from-pink-600 to-cyan-600 hover:from-pink-700 hover:to-cyan-700"
-            >
+            <Button type="submit" disabled={loading}>
               {loading ? 'Adding...' : 'Add Employee'}
             </Button>
           </DialogFooter>
@@ -546,3 +702,4 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
     </Dialog>
   )
 }
+

@@ -6,9 +6,9 @@
 echo "🚀 Starting INARA HR Development Environment..."
 echo ""
 
-# Start Docker containers (database, redis, api)
-echo "📦 Starting Docker containers..."
-docker-compose up -d
+# Start Docker containers (database, redis, api) - NOT frontend
+echo "📦 Starting Docker containers (backend only)..."
+docker-compose up -d postgres redis api
 
 # Wait for services to be ready
 echo "⏳ Waiting for services to start..."

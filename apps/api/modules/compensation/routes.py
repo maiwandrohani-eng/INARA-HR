@@ -81,10 +81,48 @@ async def delete_salary_band(
 
 # Legacy Endpoints
 @router.get("/salary-history/{employee_id}")
-async def get_salary_history(employee_id: str, db = Depends(get_db), current_user = Depends(require_hr_admin)):
-    return {"message": f"Get salary history for {employee_id} - TODO"}
+async def get_salary_history(
+    employee_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_hr_admin)
+):
+    """Get salary history for an employee"""
+    try:
+        employee_uuid = uuid.UUID(employee_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid employee ID format")
+    
+    from modules.compensation.services import CompensationService
+    compensation_service = CompensationService(db)
+    history = await compensation_service.get_salary_history(employee_uuid)
+    return history
 
 
 @router.post("/salary-adjustment")
-async def add_salary_adjustment(db = Depends(get_db), current_user = Depends(require_hr_admin)):
-    return {"message": "Add salary adjustment - TODO"}
+async def add_salary_adjustment(
+    adjustment_data: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_hr_admin)
+):
+    """Add salary adjustment"""
+    from modules.compensation.services import CompensationService
+    from datetime import datetime
+    
+    try:
+        employee_uuid = uuid.UUID(adjustment_data['employee_id'])
+        effective_date = datetime.fromisoformat(adjustment_data['effective_date']).date()
+    except (ValueError, KeyError) as e:
+        raise HTTPException(status_code=400, detail=f"Invalid data: {str(e)}")
+    
+    compensation_service = CompensationService(db)
+    adjustment = await compensation_service.add_salary_adjustment(
+        employee_id=employee_uuid,
+        salary=float(adjustment_data['salary']),
+        currency=adjustment_data.get('currency', 'USD'),
+        effective_date=effective_date,
+        change_reason=adjustment_data.get('change_reason'),
+        notes=adjustment_data.get('notes'),
+        created_by=uuid.UUID(current_user["id"])
+    )
+    
+    return adjustment

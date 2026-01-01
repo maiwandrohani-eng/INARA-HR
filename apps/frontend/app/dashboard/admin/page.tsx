@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Settings, Users, Globe, DollarSign, Shield, Database, Building2 } from 'lucide-react'
+import { Settings, Users, Globe, DollarSign, Shield, Database, Building2, Calendar } from 'lucide-react'
 import { UserManagementDialog } from '@/components/forms/UserManagementDialog'
 import { PermissionsDialog } from '@/components/forms/PermissionsDialog'
 import { CountryConfigDialog } from '@/components/forms/CountryConfigDialog'
@@ -11,6 +11,7 @@ import { SalaryBandsDialog } from '@/components/forms/SalaryBandsDialog'
 import { DatabaseDialog } from '@/components/forms/DatabaseDialog'
 import { SystemSettingsDialog } from '@/components/forms/SystemSettingsDialog'
 import { DepartmentsPositionsDialog } from '@/components/forms/DepartmentsPositionsDialog'
+import { LeavePoliciesDialog } from '@/components/forms/LeavePoliciesDialog'
 
 export default function AdminPage() {
   const [showUserManagement, setShowUserManagement] = useState(false)
@@ -20,6 +21,7 @@ export default function AdminPage() {
   const [showDatabase, setShowDatabase] = useState(false)
   const [showSystemSettings, setShowSystemSettings] = useState(false)
   const [showDepartmentsPositions, setShowDepartmentsPositions] = useState(false)
+  const [showLeavePolicies, setShowLeavePolicies] = useState(false)
 
   const handleConfigure = (sectionTitle: string) => {
     switch (sectionTitle) {
@@ -44,8 +46,26 @@ export default function AdminPage() {
       case 'Departments & Positions':
         setShowDepartmentsPositions(true)
         break
+      case 'Leave Policies':
+        setShowLeavePolicies(true)
+        break
+      case 'Country Configurations':
+        alert('Country configuration module: Set country-specific settings, currencies, and regulations')
+        break
+      case 'Salary Bands':
+        alert('Salary bands module: Define salary structures and compensation ranges by role')
+        break
+      case 'Permissions':
+        alert('Permissions module: Configure role-based access control and user permissions')
+        break
+      case 'System Settings':
+        alert('System settings module: Configure email settings, notifications, and general preferences')
+        break
+      case 'Database':
+        alert('Database module: Backup, restore, and maintain database health')
+        break
       default:
-        alert(`${sectionTitle} configuration coming soon!`)
+        alert(`${sectionTitle} configuration module`)
     }
   }
 
@@ -67,6 +87,12 @@ export default function AdminPage() {
       description: 'Configure country-specific settings',
       icon: Globe,
       color: 'text-green-600',
+    },
+    {
+      title: 'Leave Policies',
+      description: 'Manage leave types and allowances',
+      icon: Calendar,
+      color: 'text-teal-600',
     },
     {
       title: 'Salary Bands',
@@ -156,6 +182,7 @@ export default function AdminPage() {
       <DatabaseDialog open={showDatabase} onOpenChange={setShowDatabase} />
       <SystemSettingsDialog open={showSystemSettings} onOpenChange={setShowSystemSettings} />
       <DepartmentsPositionsDialog open={showDepartmentsPositions} onOpenChange={setShowDepartmentsPositions} />
+      <LeavePoliciesDialog open={showLeavePolicies} onOpenChange={setShowLeavePolicies} />
     </div>
   )
 }

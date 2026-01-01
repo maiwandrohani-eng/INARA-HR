@@ -1,0 +1,59 @@
+# Vercel ignore file
+# Exclude files and directories from Vercel deployment
+
+# Python/API files (if deploying frontend only)
+apps/api/
+*.py
+*.pyc
+__pycache__/
+*.env
+*.env.local
+
+# Dependencies (Vercel will install these)
+node_modules/
+venv/
+.venv/
+env/
+
+# Build artifacts
+.next/
+dist/
+build/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# Test files
+tests/
+*.test.*
+*.spec.*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+

@@ -42,16 +42,20 @@ class UserRepository:
             raise
     
     @retry_on_db_error(max_retries=3)
-    async def get_by_email(self, email: str) -> Optional[User]:
+    async def get_by_email(self, email: str, include_employee: bool = False) -> Optional[User]:
         """Get user by email with automatic retry on transient errors"""
         try:
-            result = await self.db.execute(
-                select(User)
-                .options(
-                    selectinload(User.roles).selectinload(Role.permissions)
-                )
-                .where(and_(User.email == email.lower(), User.is_deleted == False))
+            query = select(User).options(
+                selectinload(User.roles).selectinload(Role.permissions)
             )
+            
+            # Optionally include employee for login operations
+            if include_employee:
+                query = query.options(selectinload(User.employee))
+            
+            query = query.where(and_(User.email == email.lower(), User.is_deleted == False))
+            
+            result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
             logger.error(f"Error fetching user by email {email}: {str(e)}")
@@ -112,10 +116,40 @@ class UserRepository:
     
     async def update_last_login(self, user_id: uuid.UUID):
         """Update user's last login timestamp"""
-        user = await self.get_by_id(user_id)
-        if user:
-            user.last_login = datetime.utcnow()
-            await self.db.flush()
+        # Use direct update for better performance
+        from sqlalchemy import update
+        await self.db.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(last_login=datetime.utcnow())
+        )
+        await self.db.flush()
+    
+    async def get_by_reset_token(self, token: str) -> Optional[User]:
+        """Get user by password reset token"""
+        result = await self.db.execute(
+            select(User).where(
+                and_(
+                    User.reset_token == token,
+                    User.is_deleted == False,
+                    User.reset_token_expires > datetime.utcnow()
+                )
+            )
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_by_verification_token(self, token: str) -> Optional[User]:
+        """Get user by email verification token"""
+        result = await self.db.execute(
+            select(User).where(
+                and_(
+                    User.verification_token == token,
+                    User.is_deleted == False,
+                    User.verification_token_expires > datetime.utcnow()
+                )
+            )
+        )
+        return result.scalar_one_or_none()
 
 
 class RoleRepository:
@@ -208,3 +242,59 @@ class LoginAttemptRepository:
         self.db.add(attempt)
         await self.db.flush()
         return attempt
+
+
+class RefreshTokenRepository:
+    """Repository for RefreshToken database operations"""
+    
+    def __init__(self, db: AsyncSession):
+        self.db = db
+    
+    async def create(self, token_data: dict) -> RefreshToken:
+        """Create refresh token"""
+        token = RefreshToken(**token_data)
+        self.db.add(token)
+        await self.db.flush()
+        return token
+    
+    async def get_by_token(self, token: str) -> Optional[RefreshToken]:
+        """Get refresh token by token string"""
+        result = await self.db.execute(
+            select(RefreshToken).where(
+                and_(
+                    RefreshToken.token == token,
+                    RefreshToken.revoked == False,
+                    RefreshToken.expires_at > datetime.utcnow()
+                )
+            )
+        )
+        return result.scalar_one_or_none()
+    
+    async def revoke_token(self, token: str) -> bool:
+        """Revoke a refresh token"""
+        token_obj = await self.get_by_token(token)
+        if token_obj:
+            token_obj.revoked = True
+            token_obj.revoked_at = datetime.utcnow()
+            await self.db.flush()
+            return True
+        return False
+    
+    async def revoke_all_user_tokens(self, user_id: uuid.UUID) -> int:
+        """Revoke all refresh tokens for a user"""
+        result = await self.db.execute(
+            select(RefreshToken).where(
+                and_(
+                    RefreshToken.user_id == user_id,
+                    RefreshToken.revoked == False
+                )
+            )
+        )
+        tokens = result.scalars().all()
+        count = 0
+        for token in tokens:
+            token.revoked = True
+            token.revoked_at = datetime.utcnow()
+            count += 1
+        await self.db.flush()
+        return count

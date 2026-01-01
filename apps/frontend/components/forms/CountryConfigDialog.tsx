@@ -203,9 +203,10 @@ export function CountryConfigDialog({ open, onOpenChange }: CountryConfigDialogP
         return
       }
 
-      console.log('Making request to:', 'http://localhost:8000/api/v1/admin/countries')
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      console.log('Making request to:', `${baseUrl}/admin/countries`)
       
-      const response = await fetch('http://localhost:8000/api/v1/admin/countries', {
+      const response = await fetch(`${baseUrl}/admin/countries`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -266,9 +267,10 @@ export function CountryConfigDialog({ open, onOpenChange }: CountryConfigDialogP
         throw new Error('No authentication token found. Please log in again.')
       }
 
-      const url = editingId 
-        ? `http://localhost:8000/api/v1/admin/countries/${editingId}`
-        : 'http://localhost:8000/api/v1/admin/countries'
+const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const url = editingId
+        ? `${baseUrl}/admin/countries/${editingId}`
+        : `${baseUrl}/admin/countries`
       
       console.log('Saving country config to:', url)
       console.log('Method:', editingId ? 'PUT' : 'POST')
@@ -336,7 +338,8 @@ export function CountryConfigDialog({ open, onOpenChange }: CountryConfigDialogP
         throw new Error('No authentication token found. Please log in again.')
       }
 
-      const response = await fetch(`http://localhost:8000/api/v1/admin/countries/${id}`, {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${baseUrl}/admin/countries/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -26,9 +26,10 @@ import { useEmployees, getEmployeeFullName } from '@/hooks/useEmployees'
 interface TravelRequestFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSubmitSuccess?: () => void
 }
 
-export function TravelRequestForm({ open, onOpenChange }: TravelRequestFormProps) {
+export function TravelRequestForm({ open, onOpenChange, onSubmitSuccess }: TravelRequestFormProps) {
   const [loading, setLoading] = useState(false)
   const { employees, loading: employeesLoading } = useEmployees()
 
@@ -145,7 +146,8 @@ export function TravelRequestForm({ open, onOpenChange }: TravelRequestFormProps
       }
 
       const token = localStorage.getItem('access_token')
-      const response = await fetch('http://localhost:8000/api/v1/travel/requests/', {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${baseUrl}/travel/requests/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -161,6 +163,9 @@ export function TravelRequestForm({ open, onOpenChange }: TravelRequestFormProps
       alert('Travel request submitted successfully!')
       onOpenChange(false)
       resetForm()
+      if (onSubmitSuccess) {
+        onSubmitSuccess()
+      }
     } catch (error) {
       console.error('Error submitting travel request:', error)
       alert('Failed to submit travel request. Please try again.')
@@ -484,10 +489,13 @@ export function TravelRequestForm({ open, onOpenChange }: TravelRequestFormProps
                   <Label htmlFor="meals">Meals/Per Diem</Label>
                   <Input
                     id="meals"
+                    type="number"
+                    step="0.01"
                     value={mealsPerDiem}
                     onChange={(e) => setMealsPerDiem(e.target.value)}
-                    placeholder="Perdiem 20$/day for three days = 60$ (16,17,18 October 2025)"
+                    placeholder="0.00"
                   />
+                  <p className="text-xs text-gray-500">Enter total amount (e.g., Per diem $20/day × 3 days = $60)</p>
                 </div>
               </div>
 

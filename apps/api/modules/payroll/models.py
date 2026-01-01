@@ -9,7 +9,7 @@ from sqlalchemy.dialects.postgresql import UUID
 import enum
 
 from core.database import Base
-from core.models import BaseModel
+from core.models import BaseModel, TenantMixin
 
 
 class PayrollStatus(str, enum.Enum):
@@ -22,7 +22,7 @@ class PayrollStatus(str, enum.Enum):
     PROCESSED = "PROCESSED"  # Finance has processed payment
 
 
-class Payroll(BaseModel, Base):
+class Payroll(BaseModel, TenantMixin, Base):
     """Payroll batch for a specific month"""
     __tablename__ = "payrolls"
     
@@ -53,7 +53,14 @@ class Payroll(BaseModel, Base):
     approvals = relationship("PayrollApproval", back_populates="payroll", cascade="all, delete-orphan")
     
     def __repr__(self):
-        return f"<Payroll {self.year}-{self.month:02d} {self.status}>"
+        try:
+            # Access attributes safely without triggering lazy loads
+            year = object.__getattribute__(self, 'year')
+            month = object.__getattribute__(self, 'month')
+            status = object.__getattribute__(self, 'status')
+            return f"<Payroll {year}-{month:02d} {status}>"
+        except:
+            return f"<Payroll {id(self)}>"
 
 
 class PayrollEntry(BaseModel, Base):

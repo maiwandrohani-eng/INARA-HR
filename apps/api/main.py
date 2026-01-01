@@ -11,10 +11,94 @@ from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
 import time
 import logging
+import os
 
 from core.config import settings
 from core.database import engine, Base
 from core.exceptions import BaseHTTPException
+
+# Configure centralized logging FIRST (before any logger usage)
+import sys
+from logging.handlers import RotatingFileHandler
+
+# Create logs directory if it doesn't exist
+os.makedirs("logs", exist_ok=True)
+
+# Configure root logger
+log_level = logging.DEBUG if settings.DEBUG else logging.INFO
+log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s - [%(filename)s:%(lineno)d]'
+date_format = '%Y-%m-%d %H:%M:%S'
+
+# Console handler
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(log_level)
+console_handler.setFormatter(logging.Formatter(log_format, date_format))
+
+# File handler with rotation
+file_handler = RotatingFileHandler(
+    'logs/inara-hris.log',
+    maxBytes=10*1024*1024,  # 10 MB
+    backupCount=5
+)
+file_handler.setLevel(log_level)
+file_handler.setFormatter(logging.Formatter(log_format, date_format))
+
+# Error file handler (only errors)
+error_handler = RotatingFileHandler(
+    'logs/inara-hris-errors.log',
+    maxBytes=10*1024*1024,  # 10 MB
+    backupCount=5
+)
+error_handler.setLevel(logging.ERROR)
+error_handler.setFormatter(logging.Formatter(log_format, date_format))
+
+# Configure root logger
+logging.basicConfig(
+    level=log_level,
+    format=log_format,
+    datefmt=date_format,
+    handlers=[console_handler, file_handler, error_handler]
+)
+
+logger = logging.getLogger(__name__)
+logger.info("Logging system initialized")
+
+# Initialize Sentry for error tracking (optional)
+try:
+    if settings.SENTRY_DSN and settings.ENVIRONMENT == "production":
+        try:
+            import sentry_sdk
+            from sentry_sdk.integrations.fastapi import FastApiIntegration
+            from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+            from sentry_sdk.integrations.redis import RedisIntegration
+            
+            sentry_sdk.init(
+                dsn=settings.SENTRY_DSN,
+                environment=settings.SENTRY_ENVIRONMENT,
+                traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
+                integrations=[
+                    FastApiIntegration(),
+                    SqlalchemyIntegration(),
+                    RedisIntegration(),
+                ],
+            )
+            logger.info("Sentry error tracking initialized")
+        except ImportError:
+            logger.warning("Sentry SDK not installed. Error tracking disabled.")
+except Exception as e:
+    logger.warning(f"Failed to initialize Sentry: {e}")
+
+# Initialize rate limiting
+if settings.RATE_LIMIT_ENABLED:
+    try:
+        from core.rate_limit import limiter, rate_limit_exceeded_handler
+        from slowapi.errors import RateLimitExceeded
+        rate_limiting_enabled = True
+    except Exception as e:
+        logger.warning(f"Failed to initialize rate limiting: {e}")
+        rate_limiting_enabled = False
+else:
+    rate_limiting_enabled = False
 
 # Import all routers
 from modules.auth.routes import router as auth_router
@@ -36,13 +120,17 @@ from modules.dashboard.routes import router as dashboard_router
 from modules.approvals.routes import router as approvals_router
 from modules.employee_files.routes import router as employee_files_router
 from modules.payroll.routes import router as payroll_router
+from modules.benefits.routes import router as benefits_router
+from modules.assets.routes import router as assets_router
+from modules.expenses.routes import router as expenses_router
+from modules.notifications.routes import router as notifications_router
+from modules.compliance.routes import router as compliance_router
+from modules.succession.routes import router as succession_router
+from modules.engagement.routes import router as engagement_router
+from modules.workforce.routes import router as workforce_router
+from modules.exit_management.routes import router as exit_management_router
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO if settings.DEBUG else logging.WARNING,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Logging is already configured above
 
 
 @asynccontextmanager
@@ -102,6 +190,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add rate limiting if enabled
+if rate_limiting_enabled:
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
 
 # ============================================
 # MIDDLEWARE
@@ -110,7 +203,7 @@ app = FastAPI(
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -123,14 +216,51 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 # Request Logging Middleware
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    """Log all incoming requests"""
-    logger.info(f"🌐 {request.method} {request.url.path} - Client: {request.client.host if request.client else 'unknown'}")
+    """Log all incoming requests with enhanced logging"""
+    client_ip = request.client.host if request.client else 'unknown'
+    user_agent = request.headers.get("user-agent", "unknown")
+    
+    logger.info(
+        f"🌐 {request.method} {request.url.path} - "
+        f"Client: {client_ip} - "
+        f"User-Agent: {user_agent[:50]}"
+    )
+    
     start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    response.headers["X-Process-Time"] = str(f"{process_time:.4f}s")
-    logger.info(f"✅ {request.method} {request.url.path} - Status: {response.status_code} - Time: {process_time:.4f}s")
-    return response
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        
+        # Log with appropriate level based on status code
+        if response.status_code >= 500:
+            logger.error(
+                f"❌ {request.method} {request.url.path} - "
+                f"Status: {response.status_code} - "
+                f"Time: {process_time:.4f}s"
+            )
+        elif response.status_code >= 400:
+            logger.warning(
+                f"⚠️ {request.method} {request.url.path} - "
+                f"Status: {response.status_code} - "
+                f"Time: {process_time:.4f}s"
+            )
+        else:
+            logger.info(
+                f"✅ {request.method} {request.url.path} - "
+                f"Status: {response.status_code} - "
+                f"Time: {process_time:.4f}s"
+            )
+        
+        return response
+    except Exception as e:
+        process_time = time.time() - start_time
+        logger.error(
+            f"💥 {request.method} {request.url.path} - "
+            f"Exception: {str(e)} - "
+            f"Time: {process_time:.4f}s",
+            exc_info=True
+        )
+        raise
 
 
 # ============================================
@@ -259,7 +389,7 @@ app.include_router(performance_router, prefix=f"{settings.API_PREFIX}/performanc
 app.include_router(learning_router, prefix=f"{settings.API_PREFIX}/learning", tags=["Learning & Development"])
 app.include_router(compensation_router, prefix=f"{settings.API_PREFIX}/compensation", tags=["Compensation"])
 app.include_router(safeguarding_router, prefix=f"{settings.API_PREFIX}/safeguarding", tags=["Safeguarding"])
-app.include_router(grievance_router, prefix=f"{settings.API_PREFIX}/grievance", tags=["Grievance & Disciplinary"])
+app.include_router(grievance_router, prefix=f"{settings.API_PREFIX}", tags=["Grievance & Disciplinary"])
 app.include_router(travel_router, prefix=f"{settings.API_PREFIX}/travel", tags=["Travel & Deployment"])
 app.include_router(analytics_router, prefix=f"{settings.API_PREFIX}/analytics", tags=["Analytics"])
 app.include_router(admin_router, prefix=f"{settings.API_PREFIX}/admin", tags=["Administration"])
@@ -267,6 +397,15 @@ app.include_router(ess_router, prefix=f"{settings.API_PREFIX}/ess", tags=["Emplo
 app.include_router(approvals_router, prefix=f"{settings.API_PREFIX}", tags=["Approvals"])
 app.include_router(employee_files_router, prefix=f"{settings.API_PREFIX}", tags=["Employee Files"])
 app.include_router(payroll_router, prefix=f"{settings.API_PREFIX}", tags=["Payroll"])
+app.include_router(benefits_router, prefix=f"{settings.API_PREFIX}/benefits", tags=["Benefits"])
+app.include_router(assets_router, prefix=f"{settings.API_PREFIX}/assets", tags=["Assets"])
+app.include_router(expenses_router, prefix=f"{settings.API_PREFIX}/expenses", tags=["Expenses"])
+app.include_router(notifications_router, prefix=f"{settings.API_PREFIX}/notifications", tags=["Notifications"])
+app.include_router(compliance_router, prefix=f"{settings.API_PREFIX}/compliance", tags=["Compliance"])
+app.include_router(succession_router, prefix=f"{settings.API_PREFIX}/succession", tags=["Succession Planning"])
+app.include_router(engagement_router, prefix=f"{settings.API_PREFIX}/engagement", tags=["Employee Engagement"])
+app.include_router(workforce_router, prefix=f"{settings.API_PREFIX}/workforce", tags=["Workforce Planning"])
+app.include_router(exit_management_router, prefix=f"{settings.API_PREFIX}/exit", tags=["Exit Management"])
 
 
 if __name__ == "__main__":

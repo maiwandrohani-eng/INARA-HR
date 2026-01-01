@@ -39,7 +39,7 @@ class TimesheetService {
 
   async exportTimesheetPDF(id: string): Promise<Blob> {
     const token = localStorage.getItem('access_token')
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/timesheets/${id}/export`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/timesheets/${id}/export`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }

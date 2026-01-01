@@ -137,6 +137,13 @@ export function SystemSettingsDialog({ open, onOpenChange }: SystemSettingsDialo
       }
 
       const token = localStorage.getItem('access_token')
+      
+      if (!token) {
+        throw new Error('Not authenticated. Please log in again.')
+      }
+
+      console.log('Saving settings:', settingsData)
+      
       const response = await fetch('http://localhost:8000/api/v1/admin/settings', {
         method: 'PUT',
         headers: {
@@ -146,11 +153,31 @@ export function SystemSettingsDialog({ open, onOpenChange }: SystemSettingsDialo
         body: JSON.stringify(settingsData),
       })
 
+      console.log('Response status:', response.status)
+
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.detail || 'Failed to save settings')
+        const contentType = response.headers.get('content-type')
+        let errorMessage = 'Failed to save settings'
+        
+        try {
+          if (contentType && contentType.includes('application/json')) {
+            const error = await response.json()
+            errorMessage = error.detail || error.message || errorMessage
+          } else {
+            const text = await response.text()
+            errorMessage = text || errorMessage
+          }
+        } catch (e) {
+          console.error('Error parsing error response:', e)
+        }
+        
+        console.error('Save settings failed:', response.status, errorMessage)
+        throw new Error(errorMessage)
       }
 
+      const result = await response.json()
+      console.log('Settings saved successfully:', result)
+      
       setMessage('System settings saved successfully!')
       setMessageType('success')
     } catch (error) {

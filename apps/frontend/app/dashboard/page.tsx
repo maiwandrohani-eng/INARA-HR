@@ -21,7 +21,8 @@ export default function DashboardPage() {
 
   const checkUserRole = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/dashboard/employee', {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${baseUrl}/dashboard/employee`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
         },

@@ -80,8 +80,9 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     """User creation schema"""
-    password: str = Field(..., min_length=8)
+    password: Optional[str] = Field(None, min_length=8)  # Optional - will be auto-generated if not provided
     role_ids: List[uuid.UUID] = []
+    employee_id: Optional[uuid.UUID] = None  # Link to existing employee
 
 
 class UserUpdate(BaseModel):
@@ -104,6 +105,7 @@ class UserResponse(UserBase):
     last_login: Optional[datetime]
     created_at: datetime
     roles: List['RoleResponse'] = []
+    generated_password: Optional[str] = None  # Only included when password is auto-generated
     
     class Config:
         from_attributes = True

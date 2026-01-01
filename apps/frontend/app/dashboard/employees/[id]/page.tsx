@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, Edit } from 'lucide-react'
+import { ArrowLeft, Edit, FileText } from 'lucide-react'
 import { Employee } from '@/hooks/useEmployees'
 import PersonalFileTab from '@/components/dashboard/PersonalFileTab'
 
@@ -39,7 +39,32 @@ export default function ViewEmployeePage() {
                userPermissions.includes('admin:all');
   const isCEO = userRoles.includes('ceo') || userRoles.includes('admin') || 
                 userPermissions.includes('ceo:all') || userPermissions.includes('admin:all');
-  const isSupervisor = false; // TODO: Check if current user is supervisor of this employee
+  const [isSupervisor, setIsSupervisor] = useState(false);
+  
+  // Check if current user is supervisor of this employee
+  useEffect(() => {
+    const checkSupervisorStatus = async () => {
+      try {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`${API_BASE_URL}/dashboard/is-supervisor-of/${params.id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setIsSupervisor(data.is_supervisor || false);
+        }
+      } catch (error) {
+        console.error('Failed to check supervisor status:', error);
+      }
+    };
+    
+    if (params.id && currentUser?.employee_id) {
+      checkSupervisorStatus();
+    }
+  }, [params.id, currentUser?.employee_id]);
   
   console.log('🔐 Permissions check:', { isOwner, isHR, isCEO, userRoles, userPermissions });
 
@@ -132,10 +157,32 @@ export default function ViewEmployeePage() {
             <p className="text-gray-500 mt-2">{employee.employee_number}</p>
           </div>
         </div>
-        <Button onClick={() => router.push(`/dashboard/employees/${employee.id}/edit`)}>
-          <Edit className="w-4 h-4 mr-2" />
-          Edit
-        </Button>
+        <div className="flex items-center gap-2">
+          {isOwner && (
+            <Button 
+              variant="outline" 
+              onClick={() => router.push('/dashboard/my-personal-file')}
+              className="border-pink-200 text-pink-600 hover:bg-pink-50"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              My Personnel File
+            </Button>
+          )}
+          {(isHR || isCEO) && (
+            <Button 
+              variant="outline" 
+              onClick={() => router.push(`/dashboard/employees/${employee.id}?tab=personal-file`)}
+              className="border-pink-200 text-pink-600 hover:bg-pink-50"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              View Personnel File
+            </Button>
+          )}
+          <Button onClick={() => router.push(`/dashboard/employees/${employee.id}/edit`)}>
+            <Edit className="w-4 h-4 mr-2" />
+            Edit
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="profile" className="mt-6">

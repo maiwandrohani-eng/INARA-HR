@@ -69,8 +69,13 @@ async def list_payrolls(
     List all payrolls with pagination and filters.
     Accessible to HR Manager, Finance Manager, and CEO.
     """
+    # Get user's country_code for tenant filtering
+    # Finance Manager and CEO can see all payrolls across all countries
+    user_roles = current_user.get('roles', [])
+    user_country = None if any(role in ['finance_manager', 'ceo', 'admin'] for role in user_roles) else current_user.get('country_code')
+    
     payrolls, total = await PayrollService.list_payrolls(
-        session, page, page_size, status, year
+        session, page, page_size, status, year, user_country
     )
     
     return PayrollListResponse(
@@ -90,7 +95,12 @@ async def get_payroll_stats(
     Get payroll statistics for dashboard.
     Accessible to HR Manager, Finance Manager, and CEO.
     """
-    stats = await PayrollService.get_payroll_stats(session, current_user["id"])
+    # Get user's country_code for tenant filtering
+    # Finance Manager and CEO can see all payrolls across all countries
+    user_roles = current_user.get('roles', [])
+    user_country = None if any(role in ['finance_manager', 'ceo', 'admin'] for role in user_roles) else current_user.get('country_code')
+    
+    stats = await PayrollService.get_payroll_stats(session, current_user["id"], user_country)
     return stats
 
 
@@ -104,7 +114,12 @@ async def get_payroll(
     Get payroll by ID with all entries and approvals.
     Accessible to HR Manager, Finance Manager, and CEO.
     """
-    payroll = await PayrollService.get_payroll(session, payroll_id)
+    # Get user's country_code for tenant filtering
+    # Finance Manager and CEO can see all payrolls across all countries
+    user_roles = current_user.get('roles', [])
+    user_country = None if any(role in ['finance_manager', 'ceo', 'admin'] for role in user_roles) else current_user.get('country_code')
+    
+    payroll = await PayrollService.get_payroll(session, payroll_id, user_country)
     return payroll
 
 
@@ -145,6 +160,7 @@ async def submit_payroll_to_finance(
 async def finance_approve_payroll(
     payroll_id: str,
     approval_data: PayrollApprovalRequest,
+    approval_id: Optional[str] = None,
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -152,12 +168,16 @@ async def finance_approve_payroll(
     Finance Manager approves or rejects payroll.
     Only accessible to Finance Manager.
     """
+    import uuid as uuid_lib
+    approval_uuid = uuid_lib.UUID(approval_id) if approval_id else None
+    
     payroll = await PayrollService.finance_approve(
         session,
         payroll_id,
         current_user["id"],
         approval_data.approved,
-        approval_data.comments
+        approval_data.comments,
+        approval_uuid
     )
     return payroll
 
@@ -166,6 +186,7 @@ async def finance_approve_payroll(
 async def ceo_approve_payroll(
     payroll_id: str,
     approval_data: PayrollApprovalRequest,
+    approval_id: Optional[str] = None,
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -173,12 +194,16 @@ async def ceo_approve_payroll(
     CEO approves or rejects payroll.
     Only accessible to CEO/Admin.
     """
+    import uuid as uuid_lib
+    approval_uuid = uuid_lib.UUID(approval_id) if approval_id else None
+    
     payroll = await PayrollService.ceo_approve(
         session,
         payroll_id,
         current_user["id"],
         approval_data.approved,
-        approval_data.comments
+        approval_data.comments,
+        approval_uuid
     )
     return payroll
 
@@ -220,19 +245,81 @@ async def download_payroll_pdfs(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Download payroll as ZIP file containing all payslips.
+    Download payroll as ZIP file containing individual PDF payslips.
     Only accessible to Finance Manager and CEO after approval.
     """
+    from modules.payroll.pdf_generator import pdf_generator
+    
     payroll = await PayrollService.get_payroll(session, payroll_id)
     
     # Generate ZIP file with all payslips
     zip_bytes = pdf_generator.generate_payroll_zip(payroll, payroll.entries)
     
-    filename = f"payroll_{payroll.year}_{payroll.month:02d}.zip"
+    filename = f"payroll_{payroll.year}_{payroll.month:02d}_payslips.zip"
     
     return Response(
         content=zip_bytes,
         media_type="application/zip",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
+
+
+@router.get("/{payroll_id}/my-payslip", response_class=Response)
+async def download_my_payslip(
+    payroll_id: str,
+    session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Download employee's own payslip for a specific payroll period.
+    Only accessible to the employee themselves for approved/processed payrolls.
+    """
+    from modules.payroll.pdf_generator import pdf_generator
+    from modules.payroll.models import PayrollEntry
+    from modules.employees.models import Employee
+    from sqlalchemy import select, and_
+    from fastapi import HTTPException
+    
+    # Get employee record from user_id
+    employee_result = await session.execute(
+        select(Employee).where(Employee.user_id == current_user["id"])
+    )
+    employee = employee_result.scalar_one_or_none()
+    
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee record not found")
+    
+    # Get payroll
+    payroll = await PayrollService.get_payroll(session, payroll_id)
+    
+    # Check if payroll is approved or processed
+    if payroll.status not in ["APPROVED", "PROCESSED"]:
+        raise HTTPException(status_code=403, detail="Payslip not available yet")
+    
+    # Get employee's payroll entry
+    entry_result = await session.execute(
+        select(PayrollEntry).where(
+            and_(
+                PayrollEntry.payroll_id == payroll.id,
+                PayrollEntry.employee_id == employee.id
+            )
+        )
+    )
+    entry = entry_result.scalar_one_or_none()
+    
+    if not entry:
+        raise HTTPException(status_code=404, detail="No payslip found for this period")
+    
+    # Generate individual payslip PDF
+    pdf_bytes = pdf_generator.generate_payslip(payroll, entry)
+    
+    filename = f"{employee.employee_number}_payslip_{payroll.year}_{payroll.month:02d}.pdf"
+    
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
         headers={
             "Content-Disposition": f"attachment; filename={filename}"
         }

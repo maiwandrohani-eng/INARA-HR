@@ -344,13 +344,33 @@ async def create_employee(
 async def get_employee(
     employee_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_hr_read)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     Get employee by ID
     
-    Requires permission: hr:read
+    Accessible by:
+    - Employee themselves (own profile)
+    - HR Manager, CEO/Admin, Administrator
     """
+    from modules.employees.repositories import EmployeeRepository
+    
+    # Check if user is accessing their own profile
+    employee_repo = EmployeeRepository(db)
+    current_employee = await employee_repo.get_by_user_id(current_user["id"])
+    
+    is_owner = current_employee and str(current_employee.id) == employee_id
+    
+    # Check if user has HR/Admin/CEO access
+    user_roles = current_user.get("roles", [])
+    has_hr_access = any(role in ['hr', 'hr_manager', 'hr_admin', 'admin', 'ceo'] for role in user_roles)
+    
+    if not is_owner and not has_hr_access:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied. Only the employee, HR Manager, CEO, or Administrator can access this profile."
+        )
     # Query with eager loading of relationships
     result = await db.execute(
         select(Employee)

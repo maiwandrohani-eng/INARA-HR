@@ -2,7 +2,7 @@
 Approval Workflow Module - Database Models
 """
 
-from sqlalchemy import Column, String, Enum as SQLEnum, ForeignKey, Text, DateTime
+from sqlalchemy import Column, String, Enum as SQLEnum, ForeignKey, Text, DateTime, Integer, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 import enum
@@ -27,10 +27,15 @@ class ApprovalType(str, enum.Enum):
     TIMESHEET = "timesheet"
     PERFORMANCE = "performance"
     EXPENSE = "expense"
+    PAYROLL = "payroll"
+    SAFEGUARDING = "safeguarding"
+    GRIEVANCE = "grievance"
+    WORKFORCE = "workforce"
+    RESIGNATION = "resignation"
 
 
 class ApprovalRequest(BaseModel, TenantMixin, AuditMixin, Base):
-    """Generic approval request tracking"""
+    """Generic approval request tracking with multi-level support"""
     __tablename__ = "approval_requests"
     
     # Request details
@@ -43,6 +48,12 @@ class ApprovalRequest(BaseModel, TenantMixin, AuditMixin, Base):
     # Supervisor/approver
     approver_id = Column(UUID(as_uuid=True), ForeignKey('employees.id'), nullable=False)
     
+    # Multi-level approval tracking
+    approval_level = Column(Integer, default=1, nullable=False)  # 1 = first level, 2 = second, etc.
+    previous_approval_id = Column(UUID(as_uuid=True), ForeignKey('approval_requests.id'), nullable=True)
+    is_final_approval = Column(Boolean, default=False, nullable=False)  # True if this is the last approval needed
+    next_approver_id = Column(UUID(as_uuid=True), ForeignKey('employees.id'), nullable=True)  # For sequential approvals
+    
     # Approval status and details
     status = Column(SQLEnum(ApprovalStatus), default=ApprovalStatus.PENDING, nullable=False)
     comments = Column(Text, nullable=True)
@@ -54,9 +65,10 @@ class ApprovalRequest(BaseModel, TenantMixin, AuditMixin, Base):
     # Relationships
     employee = relationship("Employee", foreign_keys=[employee_id], backref="approval_requests_submitted")
     approver = relationship("Employee", foreign_keys=[approver_id], backref="approval_requests_to_review")
+    previous_approval = relationship("ApprovalRequest", remote_side="ApprovalRequest.id", backref="next_approvals")
     
     def __repr__(self):
-        return f"<ApprovalRequest {self.request_type} - {self.status}>"
+        return f"<ApprovalRequest {self.request_type} - Level {self.approval_level} - {self.status}>"
 
 
 class ApprovalDelegation(BaseModel, TenantMixin, AuditMixin, Base):

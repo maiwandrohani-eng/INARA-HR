@@ -101,13 +101,23 @@ class LeaveService:
                 f"Insufficient leave balance. Available: {balance.available_days}, Requested: {total_days}"
             )
         
-        # Create leave request
-        leave_request = await self.request_repo.create(request_data, total_days)
+        # Create leave request with country_code from employee
+        country_code = employee.country_code or 'US'  # Default to 'US' if not set
+        leave_request = await self.request_repo.create(request_data, total_days, country_code=country_code)
         leave_request.approver_id = employee.manager_id
         await self.db.commit()
         await self.db.refresh(leave_request)
         
-        # Create approval request
+        # Create first approval (Line Manager)
+        # Second approval (HR Manager) will be created automatically when Line Manager approves
+        from core.role_helpers import get_hr_manager
+        
+        # Find HR Manager to validate it exists
+        hr_manager = await get_hr_manager(self.db, country_code)
+        if not hr_manager:
+            raise BadRequestException("HR Manager not found. Cannot create approval chain.")
+        
+        # Create first approval (Line Manager) only
         approval_data = ApprovalRequestCreate(
             request_type=ApprovalType.LEAVE,
             request_id=leave_request.id,
@@ -115,12 +125,16 @@ class LeaveService:
             comments=request_data.reason
         )
         
-        await self.approval_service.create_approval_request(
+        line_manager_approval = await self.approval_service.create_approval_request(
             approval_data,
-            employee.manager_id
+            employee.manager_id,
+            country_code=country_code,
+            approval_level=1,
+            is_final_approval=False,
+            next_approver_id=hr_manager.id  # Store next approver ID for sequential creation
         )
         
-        # Send email notification to supervisor
+        # Send email notification to Line Manager (first approver)
         supervisor_result = await self.db.execute(
             select(Employee).where(Employee.id == employee.manager_id)
         )
@@ -166,45 +180,58 @@ class LeaveService:
         self,
         request_id: uuid.UUID,
         approver_id: uuid.UUID,
-        comments: Optional[str] = None
+        comments: Optional[str] = None,
+        approval_id: Optional[uuid.UUID] = None
     ) -> LeaveRequestResponse:
-        """Approve a leave request (called after approval workflow approves)"""
-        leave_request = await self.request_repo.approve(request_id, approver_id)
-        if not leave_request:
-            raise NotFoundException("Leave request not found")
-        
-        # Send email notification to employee
-        employee_result = await self.db.execute(
-            select(Employee).where(Employee.id == leave_request.employee_id)
-        )
-        employee = employee_result.scalar_one_or_none()
-        
-        if employee and employee.email:
-            await email_service.send_approval_status_notification(
-                to_email=employee.email,
-                request_type="leave",
-                status="approved",
-                comments=comments
-            )
-        
-        # Update leave balance (move from pending to used)
-        year = str(leave_request.start_date.year)
-        balance = await self.balance_repo.get_by_employee_type_year(
-            leave_request.employee_id,
-            leave_request.leave_type,
-            year
-        )
-        
-        if balance:
-            new_pending = balance.pending_days - leave_request.total_days
-            new_used = balance.used_days + leave_request.total_days
-            await self.balance_repo.update_balance(
-                balance.id,
-                used_days=new_used,
-                pending_days=new_pending
-            )
-        
-        return LeaveRequestResponse.model_validate(leave_request)
+        """
+        Approve a leave request through the approval workflow
+        Only processes the leave request if it's the final approval (HR Manager)
+        """
+        # Get the approval request to check if it's final
+        if approval_id:
+            approval = await self.approval_service.get_approval_request(approval_id)
+            if approval.request_id != request_id:
+                raise BadRequestException("Approval request does not match leave request")
+            
+            # Approve the approval request (this handles notifications)
+            await self.approval_service.approve_request(approval_id, approver_id, comments)
+            
+            # Only process leave request if this is the final approval
+            if approval.is_final_approval:
+                leave_request = await self.request_repo.approve(request_id, approver_id)
+                if not leave_request:
+                    raise NotFoundException("Leave request not found")
+                
+                # Update leave balance (move from pending to used)
+                year = str(leave_request.start_date.year)
+                balance = await self.balance_repo.get_by_employee_type_year(
+                    leave_request.employee_id,
+                    leave_request.leave_type,
+                    year
+                )
+                
+                if balance:
+                    new_pending = balance.pending_days - leave_request.total_days
+                    new_used = balance.used_days + leave_request.total_days
+                    await self.balance_repo.update_balance(
+                        balance.id,
+                        used_days=new_used,
+                        pending_days=new_pending
+                    )
+                
+                return LeaveRequestResponse.model_validate(leave_request)
+            else:
+                # Not final approval, just return the leave request without processing
+                leave_request = await self.request_repo.get_by_id(request_id)
+                if not leave_request:
+                    raise NotFoundException("Leave request not found")
+                return LeaveRequestResponse.model_validate(leave_request)
+        else:
+            # Legacy path - direct approval (for backward compatibility)
+            leave_request = await self.request_repo.approve(request_id, approver_id)
+            if not leave_request:
+                raise NotFoundException("Leave request not found")
+            return LeaveRequestResponse.model_validate(leave_request)
     
     async def reject_leave_request(
         self,

@@ -19,8 +19,8 @@ export interface TravelRequest {
 
 class TravelService {
   async getTravelRequests(): Promise<TravelRequest[]> {
-    const response = await apiClient.get<{requests: TravelRequest[]}>('/travel/requests')
-    return response.data.requests
+    const response = await apiClient.get<TravelRequest[]>('/travel/requests')
+    return response.data
   }
 
   async createTravelRequest(data: {
@@ -37,7 +37,7 @@ class TravelService {
 
   async exportTravelRequestPDF(id: string): Promise<Blob> {
     const token = localStorage.getItem('access_token')
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/travel/requests/${id}/export`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/travel/requests/${id}/export`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }

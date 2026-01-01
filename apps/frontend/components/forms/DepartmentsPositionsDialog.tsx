@@ -71,7 +71,8 @@ export function DepartmentsPositionsDialog({ open, onOpenChange }: DepartmentsPo
     try {
       const token = localStorage.getItem('access_token') || localStorage.getItem('token')
       console.log('Fetching departments with token:', token ? 'Token exists' : 'No token')
-      const response = await fetch('http://localhost:8000/api/v1/employees/departments', {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${baseUrl}/employees/departments`, {
         headers: { 'Authorization': `Bearer ${token}` },
       })
       console.log('Departments response status:', response.status)
@@ -92,7 +93,8 @@ export function DepartmentsPositionsDialog({ open, onOpenChange }: DepartmentsPo
     try {
       const token = localStorage.getItem('access_token') || localStorage.getItem('token')
       console.log('Fetching positions with token:', token ? 'Token exists' : 'No token')
-      const response = await fetch('http://localhost:8000/api/v1/employees/positions', {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${baseUrl}/employees/positions`, {
         headers: { 'Authorization': `Bearer ${token}` },
       })
       console.log('Positions response status:', response.status)

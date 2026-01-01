@@ -128,12 +128,14 @@ class LeaveRequestRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
     
-    async def create(self, request_data: LeaveRequestCreate, total_days: Decimal) -> LeaveRequest:
+    async def create(self, request_data: LeaveRequestCreate, total_days: Decimal, country_code: str = None) -> LeaveRequest:
         """Create a new leave request"""
+        request_dict = request_data.model_dump()
         leave_request = LeaveRequest(
-            **request_data.model_dump(),
+            **request_dict,
             total_days=total_days,
-            status="pending"
+            status="pending",
+            country_code=country_code or 'US'  # Default to 'US' if not provided
         )
         self.db.add(leave_request)
         await self.db.commit()

@@ -26,9 +26,10 @@ import { useEmployees, getEmployeeFullName } from '@/hooks/useEmployees'
 interface GrievanceFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSubmitSuccess?: () => void
 }
 
-export function GrievanceForm({ open, onOpenChange }: GrievanceFormProps) {
+export function GrievanceForm({ open, onOpenChange, onSubmitSuccess }: GrievanceFormProps) {
   const [loading, setLoading] = useState(false)
   const { employees, loading: employeesLoading } = useEmployees()
 
@@ -66,7 +67,8 @@ export function GrievanceForm({ open, onOpenChange }: GrievanceFormProps) {
       }
 
       const token = localStorage.getItem('access_token')
-      const response = await fetch('http://localhost:8000/api/v1/grievances/', {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${baseUrl}/grievances/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -82,6 +84,9 @@ export function GrievanceForm({ open, onOpenChange }: GrievanceFormProps) {
       alert('Grievance submitted successfully!')
       onOpenChange(false)
       resetForm()
+      if (onSubmitSuccess) {
+        onSubmitSuccess()
+      }
     } catch (error) {
       console.error('Error submitting grievance:', error)
       alert('Failed to submit grievance. Please try again.')

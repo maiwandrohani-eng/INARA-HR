@@ -23,3 +23,6 @@ pandas>=2.2.0
 pillow>=10.3.0
 reportlab==4.0.9
 PyPDF2==3.0.1
+slowapi==0.1.9
+sentry-sdk[fastapi]==1.40.0
+aiosqlite==0.19.0

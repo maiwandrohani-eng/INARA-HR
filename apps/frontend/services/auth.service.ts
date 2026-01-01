@@ -43,13 +43,25 @@ interface ApiUser {
 
 class AuthService {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>('/auth/login', credentials)
-    
-    // Store tokens
-    localStorage.setItem('access_token', response.data.access_token)
-    localStorage.setItem('refresh_token', response.data.refresh_token)
-    
-    return response.data
+    try {
+      console.log('🔗 Connecting to:', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1')
+      const response = await apiClient.post<AuthResponse>('/auth/login', credentials)
+      
+      // Store tokens
+      localStorage.setItem('access_token', response.data.access_token)
+      localStorage.setItem('refresh_token', response.data.refresh_token)
+      
+      return response.data
+    } catch (error: any) {
+      // Enhanced error logging
+      if (!error.response) {
+        console.error('🚫 Network Error - Backend not reachable')
+        console.error('   URL:', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1')
+        console.error('   Make sure the backend server is running on port 8000')
+        throw new Error('Cannot connect to server. Please ensure the backend API is running.')
+      }
+      throw error
+    }
   }
 
   async logout(): Promise<void> {
@@ -78,6 +90,14 @@ class AuthService {
 
   isAuthenticated(): boolean {
     return !!localStorage.getItem('access_token')
+  }
+
+  async verifyEmail(token: string): Promise<void> {
+    await apiClient.post('/auth/verify-email', { token })
+  }
+
+  async resendVerificationEmail(email: string): Promise<void> {
+    await apiClient.post('/auth/resend-verification', { email })
   }
 }
 

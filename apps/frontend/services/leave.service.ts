@@ -60,7 +60,7 @@ class LeaveService {
 
   async exportLeaveRequestPDF(id: string): Promise<Blob> {
     const token = localStorage.getItem('access_token')
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/leave/requests/${id}/export`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/leave/requests/${id}/export`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }

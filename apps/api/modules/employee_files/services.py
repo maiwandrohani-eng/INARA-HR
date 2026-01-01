@@ -214,7 +214,7 @@ class ContractService:
         new_end_date: date,
         country_code: str,
         created_by: UUID,
-        extension_number: Optional[int] = None,
+        extension_number: Optional[str] = None,
         new_monthly_salary: Optional[float] = None,
         salary_change_reason: Optional[str] = None,
         new_position_title: Optional[str] = None,
@@ -238,7 +238,9 @@ class ContractService:
             )
             extensions_result = await db.execute(extensions_query)
             existing_extensions = extensions_result.scalars().all()
-            extension_number = len(existing_extensions) + 1
+            extension_count = len(existing_extensions) + 1
+            # Format as string with contract ID prefix to ensure uniqueness
+            extension_number = f"EXT-{str(contract_id)[:8]}-{extension_count}"
         
         # Calculate expiry date (e.g., 7 days before new start date)
         from datetime import timedelta
@@ -365,20 +367,110 @@ class ResignationService:
         notice_period_days: int = 30,
         document_id: Optional[UUID] = None
     ) -> Resignation:
-        """Employee submits a resignation"""
+        """Employee submits a resignation and creates parallel approval requests for Supervisor and HR"""
+        from modules.employees.models import Employee
+        from core.role_helpers import get_hr_manager
+        from modules.approvals.services import ApprovalService
+        from modules.approvals.schemas import ApprovalRequestCreate
+        from modules.approvals.models import ApprovalType
+        from core.email import email_service
+        from sqlalchemy import select
+        
+        # Get employee to find supervisor if not provided
+        employee_result = await db.execute(
+            select(Employee).where(Employee.id == employee_id)
+        )
+        employee = employee_result.scalar_one_or_none()
+        if not employee:
+            raise NotFoundException("Employee not found")
+        
+        # Use provided supervisor_id or employee's manager_id
+        final_supervisor_id = supervisor_id or employee.manager_id
+        if not final_supervisor_id:
+            raise BadRequestException("Employee has no supervisor assigned. Cannot route resignation for approval.")
+        
+        # Create resignation
         resignation = Resignation(
             employee_id=employee_id,
             resignation_number=resignation_number,
             resignation_date=resignation_date,
             intended_last_working_day=intended_last_working_day,
             reason=reason,
-            supervisor_id=supervisor_id,
+            supervisor_id=final_supervisor_id,
             notice_period_days=notice_period_days,
             document_id=document_id,
             status=ResignationStatus.SUBMITTED,
             country_code=country_code
         )
         db.add(resignation)
+        await db.flush()
+        
+        # Find HR Manager
+        hr_manager = await get_hr_manager(db, country_code)
+        if not hr_manager:
+            raise BadRequestException("HR Manager not found. Cannot create approval chain.")
+        
+        # Create parallel approval requests for Supervisor and HR
+        approval_service = ApprovalService(db)
+        approval_data = ApprovalRequestCreate(
+            request_type=ApprovalType.RESIGNATION,
+            request_id=resignation.id,
+            employee_id=employee_id,
+            comments=f"Resignation: {resignation_number} - Intended last day: {intended_last_working_day}"
+        )
+        
+        # Create approval for Supervisor (parallel - both can approve independently)
+        if final_supervisor_id:
+            supervisor_approval = await approval_service.create_approval_request(
+                approval_data,
+                final_supervisor_id,
+                country_code=country_code,
+                approval_level=1,
+                is_final_approval=False  # Not final, need HR approval too
+            )
+            
+            # Send notification to Supervisor
+            supervisor_result = await db.execute(
+                select(Employee).where(Employee.id == final_supervisor_id)
+            )
+            supervisor = supervisor_result.scalar_one_or_none()
+            if supervisor and supervisor.email:
+                await email_service.send_approval_request_notification(
+                    to_email=supervisor.email,
+                    employee_name=f"{employee.first_name} {employee.last_name}",
+                    request_type="resignation",
+                    request_details={
+                        "Resignation Number": resignation_number,
+                        "Intended Last Day": intended_last_working_day.strftime("%Y-%m-%d"),
+                        "Notice Period": f"{notice_period_days} days",
+                        "Reason": reason[:100] + "..." if len(reason) > 100 else reason
+                    }
+                )
+        
+        # Create approval for HR Manager (parallel)
+        if hr_manager:
+            hr_approval = await approval_service.create_approval_request(
+                approval_data,
+                hr_manager.id,
+                country_code=country_code,
+                approval_level=1,
+                is_final_approval=True  # HR approval is final
+            )
+            
+            # Send notification to HR Manager
+            if hr_manager.email:
+                await email_service.send_approval_request_notification(
+                    to_email=hr_manager.email,
+                    employee_name=f"{employee.first_name} {employee.last_name}",
+                    request_type="resignation",
+                    request_details={
+                        "Resignation Number": resignation_number,
+                        "Intended Last Day": intended_last_working_day.strftime("%Y-%m-%d"),
+                        "Notice Period": f"{notice_period_days} days",
+                        "Reason": reason[:100] + "..." if len(reason) > 100 else reason
+                    }
+                )
+        
         await db.commit()
         await db.refresh(resignation)
         return resignation
@@ -388,9 +480,17 @@ class ResignationService:
         db: AsyncSession,
         resignation_id: UUID,
         supervisor_id: UUID,
-        comments: Optional[str] = None
+        comments: Optional[str] = None,
+        approval_id: Optional[UUID] = None
     ) -> Resignation:
-        """Supervisor approves a resignation"""
+        """Supervisor approves a resignation through the approval workflow"""
+        from modules.approvals.services import ApprovalService
+        from modules.approvals.models import ApprovalType
+        from modules.employees.models import Employee
+        from core.role_helpers import get_hr_manager
+        from core.email import email_service
+        from sqlalchemy import select
+        
         query = select(Resignation).where(Resignation.id == resignation_id)
         result = await db.execute(query)
         resignation = result.scalar_one_or_none()
@@ -401,9 +501,58 @@ class ResignationService:
         if resignation.status != ResignationStatus.SUBMITTED:
             raise BadRequestException("Resignation is not in submitted status")
         
+        # Get supervisor employee record
+        supervisor_result = await db.execute(
+            select(Employee).where(Employee.id == supervisor_id)
+        )
+        supervisor_employee = supervisor_result.scalar_one_or_none()
+        if not supervisor_employee:
+            raise NotFoundException("Supervisor employee record not found")
+        
+        # Get approval request and approve through approval system
+        approval_service = ApprovalService(db)
+        if not approval_id:
+            approval = await approval_service.get_approval_by_request(ApprovalType.RESIGNATION, resignation_id)
+            if not approval:
+                raise BadRequestException("Approval request not found for this resignation")
+            # Find supervisor's approval (level 1)
+            all_approvals = await approval_service.approval_repo.get_all_approvals_for_request(
+                ApprovalType.RESIGNATION, resignation_id
+            )
+            supervisor_approval = next((a for a in all_approvals if a.approver_id == supervisor_id), None)
+            if not supervisor_approval:
+                raise BadRequestException("Supervisor approval request not found")
+            approval_id = supervisor_approval.id
+        else:
+            supervisor_approval = await approval_service.get_approval_request(approval_id)
+        
+        # Approve through approval system (this will check for both approvals and notify employee if complete)
+        approval_result = await approval_service.approve_request(approval_id, supervisor_id, comments)
+        
+        # Update resignation with supervisor approval details
         resignation.supervisor_accepted_at = datetime.utcnow()
         resignation.supervisor_comments = comments
-        resignation.status = ResignationStatus.ACCEPTED_BY_SUPERVISOR
+        
+        # Check if HR has also approved (both must approve)
+        all_approvals = await approval_service.approval_repo.get_all_approvals_for_request(
+            ApprovalType.RESIGNATION, resignation_id
+        )
+        from modules.approvals.models import ApprovalStatus
+        
+        supervisor_approval_check = next((a for a in all_approvals if a.approver_id == supervisor_id), None)
+        hr_manager = await get_hr_manager(db, resignation.country_code)
+        hr_approval = next((a for a in all_approvals if hr_manager and a.approver_id == hr_manager.id), None)
+        
+        # Check if both have approved
+        supervisor_approved = supervisor_approval_check and supervisor_approval_check.status == ApprovalStatus.APPROVED
+        hr_approved = hr_approval and hr_approval.status == ApprovalStatus.APPROVED
+        
+        if supervisor_approved and hr_approved:
+            # Both Supervisor and HR have approved - status will be updated by approval system
+            resignation.status = ResignationStatus.ACCEPTED_BY_HR
+        else:
+            # Only supervisor approved, waiting for HR
+            resignation.status = ResignationStatus.ACCEPTED_BY_SUPERVISOR
         
         await db.commit()
         await db.refresh(resignation)
@@ -414,9 +563,17 @@ class ResignationService:
         db: AsyncSession,
         resignation_id: UUID,
         hr_user_id: UUID,
-        comments: Optional[str] = None
+        comments: Optional[str] = None,
+        approval_id: Optional[UUID] = None
     ) -> Resignation:
-        """HR approves a resignation"""
+        """HR approves a resignation through the approval workflow"""
+        from modules.approvals.services import ApprovalService
+        from modules.approvals.models import ApprovalType, ApprovalStatus
+        from modules.employees.models import Employee
+        from core.role_helpers import get_hr_manager
+        from core.email import email_service
+        from sqlalchemy import select
+        
         query = select(Resignation).where(Resignation.id == resignation_id)
         result = await db.execute(query)
         resignation = result.scalar_one_or_none()
@@ -424,13 +581,58 @@ class ResignationService:
         if not resignation:
             raise NotFoundException("Resignation not found")
         
-        if resignation.status != ResignationStatus.ACCEPTED_BY_SUPERVISOR:
-            raise BadRequestException("Resignation must be approved by supervisor first")
+        # HR can approve even if supervisor hasn't (parallel approvals)
+        if resignation.status not in [ResignationStatus.SUBMITTED, ResignationStatus.ACCEPTED_BY_SUPERVISOR]:
+            raise BadRequestException("Resignation cannot be approved in current status")
         
+        # Get HR Manager employee record
+        hr_manager = await get_hr_manager(db, resignation.country_code)
+        if not hr_manager:
+            raise NotFoundException("HR Manager not found")
+        
+        # Get approval request and approve through approval system
+        approval_service = ApprovalService(db)
+        if not approval_id:
+            approval = await approval_service.get_approval_by_request(ApprovalType.RESIGNATION, resignation_id)
+            if not approval:
+                raise BadRequestException("Approval request not found for this resignation")
+            # Find HR's approval
+            all_approvals = await approval_service.approval_repo.get_all_approvals_for_request(
+                ApprovalType.RESIGNATION, resignation_id
+            )
+            hr_approval_obj = next((a for a in all_approvals if a.approver_id == hr_manager.id), None)
+            if not hr_approval_obj:
+                raise BadRequestException("HR approval request not found")
+            approval_id = hr_approval_obj.id
+        else:
+            hr_approval_obj = await approval_service.get_approval_request(approval_id)
+        
+        # Approve through approval system (this will check for both approvals and notify employee if complete)
+        approval_result = await approval_service.approve_request(approval_id, hr_manager.id, comments)
+        
+        # Update resignation with HR approval details
         resignation.hr_accepted_by = hr_user_id
         resignation.hr_accepted_at = datetime.utcnow()
         resignation.hr_comments = comments
-        resignation.status = ResignationStatus.ACCEPTED_BY_HR
+        
+        # Check if Supervisor has also approved (both must approve)
+        all_approvals = await approval_service.approval_repo.get_all_approvals_for_request(
+            ApprovalType.RESIGNATION, resignation_id
+        )
+        supervisor_approval = next((a for a in all_approvals if a.approver_id == resignation.supervisor_id), None)
+        hr_approval_check = next((a for a in all_approvals if a.approver_id == hr_manager.id), None)
+        
+        # Check if both have approved
+        supervisor_approved = supervisor_approval and supervisor_approval.status == ApprovalStatus.APPROVED
+        hr_approved = hr_approval_check and hr_approval_check.status == ApprovalStatus.APPROVED
+        
+        if supervisor_approved and hr_approved:
+            # Both Supervisor and HR have approved - status will be updated by approval system
+            resignation.status = ResignationStatus.ACCEPTED_BY_HR
+        else:
+            # Only HR approved, waiting for Supervisor
+            if resignation.status == ResignationStatus.SUBMITTED:
+                resignation.status = ResignationStatus.ACCEPTED_BY_SUPERVISOR  # HR can approve first
         
         await db.commit()
         await db.refresh(resignation)

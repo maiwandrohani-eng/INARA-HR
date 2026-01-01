@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Upload, FileSpreadsheet, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import * as XLSX from 'xlsx'
+import { exportEmployeeTemplate } from '@/utils/excelExport'
 
 interface ImportEmployeesDialogProps {
   open: boolean
@@ -17,6 +18,7 @@ interface ImportResult {
   success: number
   failed: number
   errors: string[]
+  message?: string
 }
 
 export function ImportEmployeesDialog({ open, onOpenChange, onSuccess }: ImportEmployeesDialogProps) {
@@ -79,58 +81,78 @@ export function ImportEmployeesDialog({ open, onOpenChange, onSuccess }: ImportE
             return
           }
 
-          const headers = jsonData[0]
+          const headers = jsonData[0].map((h: any) => h?.toString().trim() || '')
           const employees: any[] = []
 
           for (let i = 1; i < jsonData.length; i++) {
             const values = jsonData[i]
+            
+            // Skip empty rows
+            if (!values || values.every((v: any) => !v || v.toString().trim() === '')) {
+              continue
+            }
+            
             const row: any = {}
             
             headers.forEach((header: string, index: number) => {
-              const value = values[index]?.toString().trim() || ''
-              // Map Excel headers to API fields
-              switch (header) {
-                case 'First Name':
-                  row.first_name = value
+              const value = values[index]
+              
+              // Skip empty values
+              if (value === null || value === undefined || value === '') {
+                return
+              }
+              
+              const trimmedValue = value.toString().trim()
+              
+              // Map Excel headers to API fields (case-insensitive matching)
+              const headerLower = header.toLowerCase().trim()
+              switch (headerLower) {
+                case 'first name':
+                  row.first_name = trimmedValue
                   break
-                case 'Last Name':
-                  row.last_name = value
+                case 'last name':
+                  row.last_name = trimmedValue
                   break
-                case 'Work Email':
-                  row.work_email = value
+                case 'work email':
+                case 'work_email':
+                  row.work_email = trimmedValue.toLowerCase()
                   break
-                case 'Personal Email':
-                  row.personal_email = value
+                case 'personal email':
+                case 'personal_email':
+                  row.personal_email = trimmedValue.toLowerCase()
                   break
-                case 'Phone':
-                  row.phone = value
+                case 'phone':
+                  row.phone = trimmedValue
                   break
-                case 'Mobile':
-                  row.mobile = value
+                case 'mobile':
+                  row.mobile = trimmedValue
                   break
-                case 'Date of Birth':
-                  row.date_of_birth = value
+                case 'date of birth':
+                case 'date_of_birth':
+                case 'dob':
+                  row.date_of_birth = trimmedValue
                   break
-                case 'Gender':
-                  row.gender = value.toLowerCase()
+                case 'gender':
+                  row.gender = trimmedValue.toLowerCase()
                   break
-                case 'Nationality':
-                  row.nationality = value
+                case 'nationality':
+                  row.nationality = trimmedValue
                   break
-                case 'Employment Type':
-                  row.employment_type = value.toLowerCase().replace(' ', '_')
+                case 'employment type':
+                case 'employment_type':
+                  row.employment_type = trimmedValue.toLowerCase().replace(/\s+/g, '_')
                   break
-                case 'Work Location':
-                  row.work_location = value
+                case 'work location':
+                case 'work_location':
+                  row.work_location = trimmedValue
                   break
-                case 'Hire Date':
-                  row.hire_date = value
+                case 'hire date':
+                case 'hire_date':
+                  row.hire_date = trimmedValue
                   break
-                case 'Position':
-                  // Skip position name - would need to lookup ID
-                  break
-                case 'Department':
-                  // Skip department name - would need to lookup ID
+                case 'position':
+                case 'department':
+                  // Skip position and department - would need to lookup ID in system
                   break
               }
             })
@@ -254,9 +276,28 @@ export function ImportEmployeesDialog({ open, onOpenChange, onSuccess }: ImportE
         <div className="space-y-4">
           <Alert>
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Download the template first, fill it with employee data, and upload the Excel file here.
-              Required fields: First Name, Last Name, Work Email
+            <AlertDescription className="flex items-center justify-between">
+              <span>
+                Download the template first, fill it with employee data, and upload the Excel file here.
+                Required fields: <strong>First Name</strong>, <strong>Last Name</strong>, <strong>Work Email</strong>
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  exportEmployeeTemplate()
+                  setResult({
+                    success: 0,
+                    failed: 0,
+                    errors: [],
+                    message: 'Template downloaded! Fill it out and upload the file here.'
+                  })
+                }}
+                className="ml-4"
+              >
+                Download Template
+              </Button>
             </AlertDescription>
           </Alert>
 

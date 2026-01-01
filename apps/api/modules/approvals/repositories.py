@@ -22,11 +22,26 @@ class ApprovalRequestRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
     
-    async def create(self, approval_data: ApprovalRequestCreate, approver_id: uuid.UUID) -> ApprovalRequest:
+    async def create(
+        self,
+        approval_data: ApprovalRequestCreate,
+        approver_id: uuid.UUID,
+        country_code: str = None,
+        approval_level: int = 1,
+        previous_approval_id: uuid.UUID = None,
+        is_final_approval: bool = False,
+        next_approver_id: uuid.UUID = None
+    ) -> ApprovalRequest:
         """Create a new approval request"""
+        approval_dict = approval_data.model_dump()
         approval = ApprovalRequest(
-            **approval_data.model_dump(),
-            approver_id=approver_id
+            **approval_dict,
+            approver_id=approver_id,
+            country_code=country_code or 'US',  # Default to 'US' if not provided
+            approval_level=approval_level,
+            previous_approval_id=previous_approval_id,
+            is_final_approval=is_final_approval,
+            next_approver_id=next_approver_id
         )
         self.db.add(approval)
         await self.db.commit()
@@ -63,12 +78,19 @@ class ApprovalRequestRepository:
         return result.scalar_one_or_none()
     
     async def get_pending_for_approver(self, approver_id: uuid.UUID) -> List[ApprovalRequest]:
-        """Get all pending approval requests for an approver"""
+        """
+        Get all pending approval requests for an approver
+        Only returns approvals where:
+        - Previous approval (if exists) is approved
+        - Or this is the first approval in the chain (level 1)
+        """
+        # Get all pending approvals for this approver
         result = await self.db.execute(
             select(ApprovalRequest)
             .options(
                 selectinload(ApprovalRequest.employee),
-                selectinload(ApprovalRequest.approver)
+                selectinload(ApprovalRequest.approver),
+                selectinload(ApprovalRequest.previous_approval)
             )
             .where(
                 and_(
@@ -78,7 +100,20 @@ class ApprovalRequestRepository:
             )
             .order_by(ApprovalRequest.submitted_at.desc())
         )
-        return list(result.scalars().all())
+        all_approvals = list(result.scalars().all())
+        
+        # Filter: only include if it's level 1 OR previous approval is approved
+        valid_approvals = []
+        for approval in all_approvals:
+            if approval.approval_level == 1:
+                # First level - always show
+                valid_approvals.append(approval)
+            elif approval.previous_approval:
+                # Check if previous approval is approved
+                if approval.previous_approval.status == ApprovalStatus.APPROVED:
+                    valid_approvals.append(approval)
+        
+        return valid_approvals
     
     async def get_by_employee(self, employee_id: uuid.UUID) -> List[ApprovalRequest]:
         """Get all approval requests submitted by an employee"""
@@ -89,7 +124,43 @@ class ApprovalRequestRepository:
                 selectinload(ApprovalRequest.approver)
             )
             .where(ApprovalRequest.employee_id == employee_id)
-            .order_by(ApprovalRequest.submitted_at.desc())
+            .order_by(ApprovalRequest.submitted_at.desc(), ApprovalRequest.approval_level.asc())
+        )
+        return list(result.scalars().all())
+    
+    async def get_next_approval_in_chain(self, request_type: ApprovalType, request_id: uuid.UUID, current_level: int) -> Optional[ApprovalRequest]:
+        """Get the next approval in the chain for a request"""
+        result = await self.db.execute(
+            select(ApprovalRequest)
+            .options(
+                selectinload(ApprovalRequest.employee),
+                selectinload(ApprovalRequest.approver)
+            )
+            .where(
+                and_(
+                    ApprovalRequest.request_type == request_type,
+                    ApprovalRequest.request_id == request_id,
+                    ApprovalRequest.approval_level == current_level + 1
+                )
+            )
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_all_approvals_for_request(self, request_type: ApprovalType, request_id: uuid.UUID) -> List[ApprovalRequest]:
+        """Get all approvals in the chain for a request"""
+        result = await self.db.execute(
+            select(ApprovalRequest)
+            .options(
+                selectinload(ApprovalRequest.employee),
+                selectinload(ApprovalRequest.approver)
+            )
+            .where(
+                and_(
+                    ApprovalRequest.request_type == request_type,
+                    ApprovalRequest.request_id == request_id
+                )
+            )
+            .order_by(ApprovalRequest.approval_level.asc())
         )
         return list(result.scalars().all())
     

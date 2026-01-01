@@ -115,9 +115,53 @@ export default function PayrollList({ status, onRefresh }: PayrollListProps) {
     }
   };
 
-  const handleDownload = (payrollId: string) => {
-    const url = payrollService.downloadPayroll(payrollId);
-    window.open(url, '_blank');
+  const handleDownload = async (payrollId: string) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      
+      const response = await fetch(`${baseUrl}/payroll/${payrollId}/download`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `payroll_payslips_${Date.now()}.zip`;
+      
+      if (contentDisposition) {
+        const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition);
+        if (matches != null && matches[1]) {
+          filename = matches[1].replace(/['"]/g, '');
+        }
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: 'Success',
+        description: 'Payslips downloaded successfully',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to download payslips',
+        variant: 'destructive',
+      });
+    }
   };
 
   if (loading) {
@@ -222,6 +266,7 @@ export default function PayrollList({ status, onRefresh }: PayrollListProps) {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDownload(payroll.id)}
+                        title="Download Payslips (PDF)"
                       >
                         <Download className="h-4 w-4" />
                       </Button>

@@ -107,3 +107,36 @@ def generate_reset_token() -> str:
 def generate_verification_code() -> str:
     """Generate a 6-digit verification code"""
     return str(secrets.randbelow(900000) + 100000)
+
+
+def generate_secure_password(length: int = 12) -> str:
+    """
+    Generate a secure random password
+    
+    Args:
+        length: Password length (default: 12, minimum: 8)
+    
+    Returns:
+        Secure password string with uppercase, lowercase, digits, and special chars
+    """
+    import string
+    import random
+    
+    if length < 8:
+        length = 8
+    
+    # Ensure at least one character from each required category
+    uppercase = random.choice(string.ascii_uppercase)
+    lowercase = random.choice(string.ascii_lowercase)
+    digits = random.choice(string.digits)
+    special = random.choice('!@#$%^&*')
+    
+    # Fill the rest with random characters from all categories
+    all_chars = string.ascii_letters + string.digits + '!@#$%^&*'
+    remaining = ''.join(secrets.choice(all_chars) for _ in range(length - 4))
+    
+    # Shuffle to avoid predictable patterns
+    password_chars = list(uppercase + lowercase + digits + special + remaining)
+    random.shuffle(password_chars)
+    
+    return ''.join(password_chars)

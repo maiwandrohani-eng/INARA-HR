@@ -25,9 +25,10 @@ import { useEmployees, getEmployeeFullName } from '@/hooks/useEmployees'
 interface SafeguardingReportFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSubmitSuccess?: () => void
 }
 
-export function SafeguardingReportForm({ open, onOpenChange }: SafeguardingReportFormProps) {
+export function SafeguardingReportForm({ open, onOpenChange, onSubmitSuccess }: SafeguardingReportFormProps) {
   const [loading, setLoading] = useState(false)
   const { employees, loading: employeesLoading } = useEmployees()
 
@@ -65,22 +66,39 @@ export function SafeguardingReportForm({ open, onOpenChange }: SafeguardingRepor
         status: 'reported',
       }
 
-      const response = await fetch('http://localhost:8000/api/v1/safeguarding/cases/', {
+      const token = localStorage.getItem('access_token')
+      
+      if (!token) {
+        alert('You are not logged in. Please log in and try again.')
+        return
+      }
+      
+      const response = await fetch('http://localhost:8000/api/v1/safeguarding/cases', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(reportData),
       })
 
       if (!response.ok) {
+        if (response.status === 401) {
+          alert('Your session has expired. Please log out and log back in.')
+          return
+        }
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Error response:', errorData)
         throw new Error('Failed to submit safeguarding report')
       }
 
-      alert('Safeguarding report submitted successfully. A case number will be assigned.')
-      onOpenChange(false)
+      const result = await response.json()
+      alert(`Safeguarding report submitted successfully.\nCase Number: ${result.case_number}`)
       resetForm()
+      onOpenChange(false)
+      if (onSubmitSuccess) {
+        onSubmitSuccess()
+      }
     } catch (error) {
       console.error('Error submitting safeguarding report:', error)
       alert('Failed to submit report. Please try again.')
@@ -282,7 +300,7 @@ export function SafeguardingReportForm({ open, onOpenChange }: SafeguardingRepor
 
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
             <strong>Important:</strong> If this is an emergency or someone is in immediate danger, 
-            please contact emergency services (911) or your local safeguarding officer immediately.
+            please contact your country's emergency services number or your local safeguarding officer immediately.
           </div>
 
           <DialogFooter className="gap-2">

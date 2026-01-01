@@ -85,43 +85,70 @@ export function LeaveRequestForm({ open, onOpenChange }: LeaveRequestFormProps) 
     setLoading(true)
 
     try {
+      // Map frontend fields to backend schema
+      // Backend expects: leave_type, start_date, end_date, reason, notes, employee_id (optional)
+      const leaveType = natureOfLeave === 'Other' ? otherLeaveType : natureOfLeave
+      
+      if (!leaveType) {
+        alert('Please select a leave type')
+        setLoading(false)
+        return
+      }
+      
+      if (!leaveStartDate || !leaveEndDate) {
+        alert('Please select both start and end dates')
+        setLoading(false)
+        return
+      }
+
       const leaveData = {
-        employee_id: employeeId,
-        employee_name: employeeName,
-        position,
-        date_hired: dateHired,
-        id_number: idNumber,
-        leave_start_date: leaveStartDate,
-        leave_end_date: leaveEndDate,
-        reason,
-        date_submitted: dateSubmitted,
-        nature_of_leave: natureOfLeave === 'Other' ? otherLeaveType : natureOfLeave,
-        available_accrued_leave: availableAccruedLeave,
-        leave_requested: leaveRequested,
-        balance_leave: balanceLeave,
-        supervisor_comment: supervisorComment,
-        status: 'pending',
+        leave_type: leaveType,
+        start_date: leaveStartDate, // Backend expects start_date (not leave_start_date)
+        end_date: leaveEndDate, // Backend expects end_date (not leave_end_date)
+        reason: reason || undefined,
+        notes: supervisorComment || undefined, // Map supervisor_comment to notes
+        // employee_id is optional - backend will use current_user if not provided
+        employee_id: employeeId || undefined,
       }
 
-      const response = await fetch('http://localhost:8000/api/v1/leave/requests/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        },
-        body: JSON.stringify(leaveData),
-      })
+      console.log('Submitting leave request with data:', leaveData)
 
-      if (!response.ok) {
-        throw new Error('Failed to submit leave request')
+      // Use API client instead of direct fetch for consistent error handling
+      const { api } = await import('@/lib/api-client')
+      
+      try {
+        const response = await api.post('/leave/requests', leaveData)
+        console.log('Leave request submitted successfully:', response)
+        alert('Leave request submitted successfully!')
+        onOpenChange(false)
+        resetForm()
+      } catch (apiError: any) {
+        console.error('API Error details:', {
+          message: apiError.message,
+          response: apiError.response?.data,
+          status: apiError.response?.status,
+        })
+        throw apiError // Re-throw to be caught by outer catch
       }
-
-      alert('Leave request submitted successfully!')
-      onOpenChange(false)
-      resetForm()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting leave request:', error)
-      alert('Failed to submit leave request. Please try again.')
+      let errorMsg = 'Unknown error'
+      
+      if (error.response?.data) {
+        // Axios error with response
+        const errorDetail = error.response.data.detail || error.response.data.message
+        if (Array.isArray(errorDetail)) {
+          // Validation errors
+          errorMsg = errorDetail.map((e: any) => `${e.loc?.join('.')}: ${e.msg}`).join(', ')
+        } else {
+          errorMsg = errorDetail || JSON.stringify(error.response.data)
+        }
+      } else if (error.message) {
+        // Other error with message
+        errorMsg = error.message
+      }
+      
+      alert(`Failed to submit leave request: ${errorMsg}`)
     } finally {
       setLoading(false)
     }

@@ -170,6 +170,7 @@ export const payrollService = {
 
   // Download payroll PDFs
   downloadPayroll(payrollId: string): string {
-    return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/payroll/${payrollId}/download`;
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+    return `${baseUrl}/payroll/${payrollId}/download`;
   },
 };

@@ -34,9 +34,10 @@ interface LeaveHours {
 interface TimesheetFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSubmitSuccess?: () => void
 }
 
-export function TimesheetForm({ open, onOpenChange }: TimesheetFormProps) {
+export function TimesheetForm({ open, onOpenChange, onSubmitSuccess }: TimesheetFormProps) {
   const [loading, setLoading] = useState(false)
   const { employees, loading: employeesLoading } = useEmployees()
   
@@ -60,12 +61,14 @@ export function TimesheetForm({ open, onOpenChange }: TimesheetFormProps) {
       // Auto-populate duty station from work location or office location
       setDutyStation(selectedEmployee.work_location || selectedEmployee.office_location || '')
       
-      // Auto-populate line manager from reporting manager
-      if (selectedEmployee.reporting_manager_id) {
-        const manager = employees.find(emp => emp.id === selectedEmployee.reporting_manager_id)
+      // Auto-populate line manager from manager_id
+      if (selectedEmployee.manager_id) {
+        const manager = employees.find(emp => emp.id === selectedEmployee.manager_id)
         if (manager) {
           setLineManager(getEmployeeFullName(manager))
         }
+      } else {
+        setLineManager('')
       }
     }
   }, [selectedEmployee, employees])
@@ -232,9 +235,11 @@ export function TimesheetForm({ open, onOpenChange }: TimesheetFormProps) {
           Object.entries(projectHours[project]).forEach(([day, hours]) => {
             if (hours > 0) {
               const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+              // Ensure date is in ISO format (YYYY-MM-DD)
+              const isoDate = date.toISOString().split('T')[0]
               entries.push({
                 project_id: project, // TODO: Map to actual project UUID
-                date: date.toISOString().split('T')[0],
+                date: isoDate,
                 hours: hours,
                 activity_description: `Work on ${project}`,
                 notes: ''
@@ -244,6 +249,10 @@ export function TimesheetForm({ open, onOpenChange }: TimesheetFormProps) {
         }
       })
 
+      // Ensure month and day are zero-padded for ISO format
+      const paddedMonth = month.padStart(2, '0')
+      const paddedDaysInMonth = daysInMonth.toString().padStart(2, '0')
+      
       const timesheetData = {
         employee_id: employeeId,
         employee_name: selectedEmployee ? getEmployeeFullName(selectedEmployee) : '',
@@ -251,33 +260,38 @@ export function TimesheetForm({ open, onOpenChange }: TimesheetFormProps) {
         duty_station: dutyStation,
         line_manager: lineManager,
         month_year: `${month}/${year}`,
-        period_start: `${year}-${month}-01`,
-        period_end: `${year}-${month}-${daysInMonth}`,
+        period_start: `${year}-${paddedMonth}-01`,
+        period_end: `${year}-${paddedMonth}-${paddedDaysInMonth}`,
         total_hours: calculateGrandTotal(),
         status: 'draft',
         entries: entries,
         comments: comments
       }
 
-      const response = await fetch('http://localhost:8000/api/v1/timesheets', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // TODO: Add auth token
-        },
-        body: JSON.stringify(timesheetData),
+      // Use API client which handles auth automatically
+      const { apiClient } = await import('@/lib/api-client')
+      
+      console.log('Submitting timesheet with data:', {
+        entries_count: entries.length,
+        entries: entries.slice(0, 3), // Log first 3 entries
+        total_hours: timesheetData.total_hours,
+        period: `${timesheetData.period_start} to ${timesheetData.period_end}`
       })
+      
+      const response = await apiClient.post('/timesheets/', timesheetData)
+      
+      console.log('Timesheet submission response:', response)
 
-      if (!response.ok) {
-        throw new Error('Failed to submit timesheet')
-      }
-
-      alert('Timesheet submitted successfully!')
+      alert(`Timesheet submitted successfully! ${response.entries_count || entries.length} entries saved.`)
       onOpenChange(false)
       resetForm()
-    } catch (error) {
+      if (onSubmitSuccess) {
+        onSubmitSuccess()
+      }
+    } catch (error: any) {
       console.error('Error submitting timesheet:', error)
-      alert('Failed to submit timesheet. Please try again.')
+      const errorMsg = error.response?.data?.detail || error.message || 'Unknown error'
+      alert(`Failed to submit timesheet: ${errorMsg}`)
     } finally {
       setLoading(false)
     }
@@ -403,6 +417,14 @@ export function TimesheetForm({ open, onOpenChange }: TimesheetFormProps) {
                   <SelectItem value="2025">2025</SelectItem>
                   <SelectItem value="2026">2026</SelectItem>
                   <SelectItem value="2027">2027</SelectItem>
+                  <SelectItem value="2028">2028</SelectItem>
+                  <SelectItem value="2029">2029</SelectItem>
+                  <SelectItem value="2030">2030</SelectItem>
+                  <SelectItem value="2031">2031</SelectItem>
+                  <SelectItem value="2032">2032</SelectItem>
+                  <SelectItem value="2033">2033</SelectItem>
+                  <SelectItem value="2034">2034</SelectItem>
+                  <SelectItem value="2035">2035</SelectItem>
                 </SelectContent>
               </Select>
             </div>

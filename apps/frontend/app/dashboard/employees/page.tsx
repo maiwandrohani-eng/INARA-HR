@@ -17,6 +17,9 @@ export default function EmployeesPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
   const [showImportDialog, setShowImportDialog] = useState(false)
+  const [showFilterDialog, setShowFilterDialog] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('')
+  const [employmentTypeFilter, setEmploymentTypeFilter] = useState('')
 
   const handleAddEmployee = () => {
     setShowAddForm(true)
@@ -116,7 +119,12 @@ export default function EmployeesPage() {
   }
 
   const handleFilter = () => {
-    alert('Filter functionality coming soon!')
+    setShowFilterDialog(!showFilterDialog)
+  }
+
+  const clearFilters = () => {
+    setStatusFilter('')
+    setEmploymentTypeFilter('')
   }
 
   const handleExportTemplate = () => {
@@ -149,12 +157,16 @@ export default function EmployeesPage() {
 
   const filteredEmployees = employees.filter(emp => {
     const searchLower = searchTerm.toLowerCase()
-    return (
+    const matchesSearch = (
       emp.first_name?.toLowerCase().includes(searchLower) ||
       emp.last_name?.toLowerCase().includes(searchLower) ||
       emp.work_email?.toLowerCase().includes(searchLower) ||
       emp.employee_number?.toLowerCase().includes(searchLower)
     )
+    const matchesStatus = !statusFilter || emp.status === statusFilter
+    const matchesEmploymentType = !employmentTypeFilter || emp.employment_type === employmentTypeFilter
+    
+    return matchesSearch && matchesStatus && matchesEmploymentType
   })
 
   return (
@@ -301,6 +313,60 @@ export default function EmployeesPage() {
         onOpenChange={setShowImportDialog}
         onSuccess={handleImportSuccess}
       />
+
+      {/* Filter Dialog */}
+      {showFilterDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Filter Employees</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Status</label>
+                <select
+                  className="w-full border rounded px-3 py-2"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="terminated">Terminated</option>
+                  <option value="on_leave">On Leave</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Employment Type</label>
+                <select
+                  className="w-full border rounded px-3 py-2"
+                  value={employmentTypeFilter}
+                  onChange={(e) => setEmploymentTypeFilter(e.target.value)}
+                >
+                  <option value="">All Types</option>
+                  <option value="full_time">Full Time</option>
+                  <option value="part_time">Part Time</option>
+                  <option value="contract">Contract</option>
+                  <option value="consultant">Consultant</option>
+                  <option value="intern">Intern</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <Button variant="outline" onClick={clearFilters}>
+                Clear
+              </Button>
+              <Button variant="outline" onClick={() => setShowFilterDialog(false)}>
+                Close
+              </Button>
+              <Button onClick={() => setShowFilterDialog(false)}>
+                Apply
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

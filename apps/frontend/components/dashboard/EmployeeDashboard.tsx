@@ -14,7 +14,9 @@ import {
   DollarSign,
   Plane,
   Shield,
-  Award
+  Award,
+  BookOpen,
+  Download
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -37,6 +39,7 @@ interface TravelRequest {
 
 interface Payslip {
   id: string
+  payroll_id: string
   period: string
   amount: number
   currency: string
@@ -98,7 +101,8 @@ export function EmployeeDashboard({ showSupervisorSection = false }: EmployeeDas
 
   const fetchEmployeeDashboardData = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/dashboard/employee', {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${baseUrl}/dashboard/employee`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
         },
@@ -106,12 +110,56 @@ export function EmployeeDashboard({ showSupervisorSection = false }: EmployeeDas
       
       if (response.ok) {
         const dashboardData = await response.json()
+        console.log('Dashboard data:', dashboardData)
         setData(dashboardData)
+      } else {
+        const errorData = await response.json()
+        console.error('Dashboard API error:', errorData)
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDownloadPayslip = async (payrollId: string) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      
+      const response = await fetch(`${baseUrl}/payroll/${payrollId}/my-payslip`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `payslip_${Date.now()}.pdf`;
+      
+      if (contentDisposition) {
+        const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition);
+        if (matches != null && matches[1]) {
+          filename = matches[1].replace(/['"]/g, '');
+        }
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Failed to download payslip:', error);
+      alert('Failed to download payslip. Please try again.');
     }
   }
 
@@ -136,23 +184,38 @@ export function EmployeeDashboard({ showSupervisorSection = false }: EmployeeDas
     <div className="space-y-6">
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-pink-600 to-cyan-600 rounded-lg p-6 text-white">
-        <h1 className="text-3xl font-bold">Welcome back, {data?.employee.name || 'Employee'}!</h1>
-        <p className="mt-2 text-pink-100">
-          {data?.employee.position} • {data?.employee.department}
-        </p>
-        <p className="text-sm text-pink-100">Employee ID: {data?.employee.employee_number}</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Welcome back, {data?.employee.name || 'Employee'}!</h1>
+            <p className="mt-2 text-pink-100">
+              {data?.employee.position} • {data?.employee.department}
+            </p>
+            <p className="text-sm text-pink-100">Employee ID: {data?.employee.employee_number}</p>
+          </div>
+          <Button 
+            variant="secondary" 
+            className="bg-white text-pink-600 hover:bg-pink-50 font-semibold"
+            onClick={() => window.location.href = '/dashboard/my-personal-file'}
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            My Personnel File
+          </Button>
+        </div>
       </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => window.location.href = '/dashboard/my-personal-file'}>
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-pink-200 bg-gradient-to-br from-pink-50 to-cyan-50" onClick={() => window.location.href = '/dashboard/my-personal-file'}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">My Personal File</CardTitle>
-            <FileText className="w-5 h-5 text-pink-500" />
+            <CardTitle className="text-sm font-semibold text-gray-700">My Personnel File</CardTitle>
+            <FileText className="w-5 h-5 text-pink-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg font-bold">View Details</div>
-            <p className="text-sm text-gray-500">Contracts & Documents</p>
+            <div className="text-lg font-bold text-gray-900">View Details</div>
+            <p className="text-sm text-gray-600">Contracts, Documents & Records</p>
+            <div className="mt-2 flex items-center text-xs text-pink-600 font-medium">
+              Quick Access →
+            </div>
           </CardContent>
         </Card>
 
@@ -288,14 +351,18 @@ export function EmployeeDashboard({ showSupervisorSection = false }: EmployeeDas
             {data?.recentPayslips.length ? (
               <div className="space-y-3">
                 {data.recentPayslips.slice(0, 5).map((payslip) => (
-                  <div key={payslip.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <div key={payslip.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
                     <div className="flex-1">
                       <p className="font-medium">{payslip.period}</p>
                       <p className="text-sm text-gray-500">
                         {payslip.currency} {payslip.amount.toLocaleString()}
                       </p>
                     </div>
-                    <Button variant="ghost" size="sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleDownloadPayslip(payslip.payroll_id)}
+                    >
                       <FileText className="w-4 h-4 mr-1" />
                       Download
                     </Button>
@@ -342,6 +409,29 @@ export function EmployeeDashboard({ showSupervisorSection = false }: EmployeeDas
         </Card>
       </div>
 
+      {/* User Manual Section */}
+      <Card className="border-2 border-pink-200 bg-gradient-to-br from-pink-50 to-white">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-pink-600" />
+            User Manual & Help
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={() => window.location.href = '/dashboard/user-manual'}
+            variant="outline"
+            className="w-full"
+          >
+            <BookOpen className="w-4 h-4 mr-2" />
+            View User Manual
+          </Button>
+          <p className="text-sm text-gray-600 mt-4">
+            Need help? Access the comprehensive user manual for step-by-step guides on using all system features.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Performance Review Section */}
       <Card>
         <CardHeader>
@@ -387,7 +477,7 @@ export function EmployeeDashboard({ showSupervisorSection = false }: EmployeeDas
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => window.location.href = '/dashboard/leave'}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -400,7 +490,7 @@ export function EmployeeDashboard({ showSupervisorSection = false }: EmployeeDas
               </CardContent>
             </Card>
 
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => window.location.href = '/dashboard/travel'}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -413,7 +503,7 @@ export function EmployeeDashboard({ showSupervisorSection = false }: EmployeeDas
               </CardContent>
             </Card>
 
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => window.location.href = '/dashboard/timesheets'}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -426,7 +516,7 @@ export function EmployeeDashboard({ showSupervisorSection = false }: EmployeeDas
               </CardContent>
             </Card>
 
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => window.location.href = '/dashboard/performance'}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>

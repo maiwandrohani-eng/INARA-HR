@@ -39,18 +39,46 @@ async def upload_document(
     current_user: dict = Depends(get_current_user)
 ):
     """Upload a document to an employee's personal file"""
-    # TODO: Implement actual file storage (S3, local filesystem, etc.)
-    # For now, we'll simulate file storage
-    file_path = f"/uploads/employee_files/{employee_id}/{file.filename}"
+    from core.file_storage import file_storage
+    from core.config import settings
+    from core.exceptions import FileUploadException
+    import os
+    
+    # Validate file size
+    file_content = await file.read()
+    file_size = len(file_content)
+    
+    if file_size > settings.MAX_FILE_SIZE_BYTES:
+        max_size_mb = settings.MAX_FILE_SIZE_MB
+        raise FileUploadException(
+            message=f"File size exceeds maximum allowed size of {max_size_mb}MB",
+            details=f"Uploaded file: {file_size / (1024*1024):.2f}MB, Maximum: {max_size_mb}MB"
+        )
+    
+    # Validate file extension
+    file_ext = os.path.splitext(file.filename or "")[1].lower()
+    if file_ext and file_ext not in settings.ALLOWED_FILE_EXTENSIONS:
+        raise FileUploadException(
+            message=f"File type not allowed",
+            details=f"Allowed extensions: {', '.join(settings.ALLOWED_FILE_EXTENSIONS)}"
+        )
+    
+    # Upload file to storage (S3 or local)
+    upload_result = await file_storage.upload_file(
+        file_content=file_content,
+        file_name=file.filename,
+        folder="employee_files",
+        employee_id=str(employee_id)
+    )
     
     document = await DocumentService.create_document(
         db=db,
         employee_id=employee_id,
         category=category,
         title=title,
-        file_path=file_path,
-        file_name=file.filename,
-        file_size=0,  # TODO: Get actual file size
+        file_path=upload_result["file_path"],
+        file_name=upload_result["file_name"],
+        file_size=upload_result["file_size"],
         mime_type=file.content_type or "application/octet-stream",
         uploaded_by=current_user["id"],
         country_code=current_user.get("country_code", "AFG"),
@@ -306,15 +334,27 @@ async def submit_resignation(
 async def approve_resignation_supervisor(
     resignation_id: UUID,
     approval: ResignationApprove,
+    approval_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Supervisor approves a resignation"""
+    """Supervisor approves a resignation through approval workflow"""
+    from modules.employees.repositories import EmployeeRepository
+    
+    # Get supervisor employee ID from user
+    employee_repo = EmployeeRepository(db)
+    supervisor_employee = await employee_repo.get_by_user_id(current_user["id"])
+    if not supervisor_employee:
+        raise HTTPException(status_code=404, detail="Supervisor employee record not found")
+    
+    approval_uuid = UUID(approval_id) if approval_id else None
+    
     resignation = await ResignationService.approve_by_supervisor(
         db=db,
         resignation_id=resignation_id,
-        supervisor_id=current_user["id"],
-        comments=approval.comments
+        supervisor_id=supervisor_employee.id,
+        comments=approval.comments,
+        approval_id=approval_uuid
     )
     
     return resignation
@@ -324,15 +364,19 @@ async def approve_resignation_supervisor(
 async def approve_resignation_hr(
     resignation_id: UUID,
     approval: ResignationApprove,
+    approval_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """HR approves a resignation"""
+    """HR approves a resignation through approval workflow"""
+    approval_uuid = UUID(approval_id) if approval_id else None
+    
     resignation = await ResignationService.approve_by_hr(
         db=db,
         resignation_id=resignation_id,
         hr_user_id=current_user["id"],
-        comments=approval.comments
+        comments=approval.comments,
+        approval_id=approval_uuid
     )
     
     return resignation

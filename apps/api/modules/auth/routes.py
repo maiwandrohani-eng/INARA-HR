@@ -3,9 +3,13 @@ Authentication Module - API Routes
 Endpoints for authentication and user management
 """
 
-from fastapi import APIRouter, Depends, status, Request
+from fastapi import APIRouter, Depends, status, Request, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_
 from typing import List
+import csv
+import io
 
 from core.database import get_db
 from core.dependencies import get_current_user, get_current_active_user, require_admin
@@ -20,6 +24,8 @@ from modules.auth.schemas import (
     UserUpdate,
     ChangePasswordRequest,
     ForgotPasswordRequest,
+    ResetPasswordRequest,
+    VerifyEmailRequest,
     RoleCreate,
     RoleResponse,
     PermissionCreate,
@@ -29,12 +35,23 @@ from core.config import settings
 
 router = APIRouter()
 
+# Rate limiting for auth endpoints (stricter limits) - optional
+try:
+    if settings.RATE_LIMIT_ENABLED:
+        from core.rate_limit import limiter
+        from slowapi.util import get_remote_address
+    else:
+        limiter = None
+except (ImportError, Exception):
+    limiter = None  # Rate limiting not available
+
 
 # ============================================
 # Authentication Endpoints
 # ============================================
 
 @router.post("/login", response_model=LoginResponse)
+@limiter.limit(f"{settings.RATE_LIMIT_AUTH_PER_MINUTE}/minute") if limiter else lambda x: x
 async def login(
     request: Request,
     credentials: LoginRequest,
@@ -151,6 +168,61 @@ async def forgot_password(
     }
 
 
+@router.post("/reset-password")
+async def reset_password(
+    request_data: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Reset password using reset token
+    
+    - **token**: Password reset token from email
+    - **new_password**: New password (min 8 chars, must include uppercase, lowercase, and digit)
+    """
+    auth_service = AuthService(db)
+    await auth_service.reset_password(request_data.token, request_data.new_password)
+    return {
+        "success": True,
+        "message": "Password reset successfully"
+    }
+
+
+@router.post("/verify-email")
+async def verify_email(
+    request_data: VerifyEmailRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Verify email address using verification token
+    
+    - **token**: Email verification token from email
+    """
+    auth_service = AuthService(db)
+    await auth_service.verify_email(request_data.token)
+    return {
+        "success": True,
+        "message": "Email verified successfully"
+    }
+
+
+@router.post("/resend-verification")
+async def resend_verification(
+    request_data: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Resend email verification link
+    
+    - **email**: User email address
+    """
+    auth_service = AuthService(db)
+    await auth_service.resend_verification_email(request_data.email)
+    return {
+        "success": True,
+        "message": "If the email exists and is not verified, a verification link has been sent"
+    }
+
+
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_profile(
     db: AsyncSession = Depends(get_db),
@@ -235,6 +307,131 @@ async def update_user(
     await db.commit()  # Explicit commit for update operation
     await db.refresh(user)
     return user
+
+
+@router.get("/employees/without-users")
+async def list_employees_without_users(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin)
+):
+    """List all employees that don't have user accounts yet"""
+    from modules.employees.models import Employee
+    from sqlalchemy.orm import selectinload
+    
+    # Get all employees without user_id, with relationships loaded
+    result = await db.execute(
+        select(Employee)
+        .options(
+            selectinload(Employee.department),
+            selectinload(Employee.position)
+        )
+        .where(
+            and_(
+                Employee.is_deleted == False,
+                Employee.user_id.is_(None)
+            )
+        )
+        .order_by(Employee.first_name, Employee.last_name)
+    )
+    employees = result.scalars().all()
+    
+    # Return simplified employee data for dropdown
+    return [
+        {
+            "id": str(emp.id),
+            "employee_number": emp.employee_number,
+            "full_name": f"{emp.first_name} {emp.last_name}",
+            "email": emp.work_email or emp.personal_email,
+            "department": emp.department.name if emp.department else None,
+            "position": emp.position.title if emp.position else None,
+        }
+        for emp in employees
+    ]
+
+
+@router.get("/users/export")
+async def export_users_with_credentials(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin)
+):
+    """
+    Export all users with their credentials (passwords will be reset/generated)
+    Returns CSV file with email, password, name, role, etc.
+    """
+    from core.security import generate_secure_password
+    from modules.auth.repositories import UserRepository
+    from modules.auth.models import User
+    
+    user_repo = UserRepository(db)
+    users = await user_repo.get_all(skip=0, limit=10000)  # Get all users
+    
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        "Email",
+        "Password",
+        "First Name",
+        "Last Name",
+        "Phone",
+        "Country Code",
+        "Role",
+        "Is Active",
+        "Is Verified",
+        "Employee ID",
+        "Employee Number",
+    ])
+    
+    # Reset passwords and write user data
+    for user in users:
+        # Generate new password for export
+        new_password = generate_secure_password(12)
+        
+        # Update user password
+        await user_repo.update(user.id, {"password": new_password})
+        await db.commit()
+        
+        # Get role names
+        role_names = [role.display_name for role in user.roles] if user.roles else []
+        role_str = ", ".join(role_names) if role_names else "No Role"
+        
+        # Get employee info if linked
+        employee_number = None
+        if user.employee_id:
+            from modules.employees.models import Employee
+            emp_result = await db.execute(
+                select(Employee).where(Employee.id == user.employee_id)
+            )
+            employee = emp_result.scalar_one_or_none()
+            if employee:
+                employee_number = employee.employee_number
+        
+        writer.writerow([
+            user.email,
+            new_password,
+            user.first_name,
+            user.last_name,
+            user.phone or "",
+            user.country_code,
+            role_str,
+            "Yes" if user.is_active else "No",
+            "Yes" if user.is_verified else "No",
+            str(user.employee_id) if user.employee_id else "",
+            employee_number or "",
+        ])
+    
+    output.seek(0)
+    
+    # Return CSV file
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=users_credentials_export.csv"
+        }
+    )
 
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

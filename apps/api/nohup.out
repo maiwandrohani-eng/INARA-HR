@@ -22092,3 +22092,550 @@ OSError: [Errno 9] Bad file descriptor
 
 Current thread 0x00000001fda1e0c0 (most recent call first):
   <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/admin/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/admin/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/models.py', 'modules/payroll/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/models.py', 'modules/payroll/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'alembic/versions/008_add_tenant_to_payrolls.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'alembic/versions/008_add_tenant_to_payrolls.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'alembic/versions/008_add_tenant_to_payrolls.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/services.py', 'modules/payroll/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/services.py', 'modules/payroll/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'alembic/versions/008_add_tenant_to_payrolls.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'alembic/versions/008_add_tenant_to_payrolls.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/schemas.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/schemas.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/schemas.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/schemas.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/schemas.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/schemas.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/schemas.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/pdf_generator.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/pdf_generator.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/pdf_generator.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/pdf_generator.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/pdf_generator.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/pdf_generator.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/dashboard/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/dashboard/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/dashboard/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/dashboard/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/dashboard/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/dashboard/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/dashboard/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/dashboard/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/dashboard/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/dashboard/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/dashboard/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'alembic/versions/009_add_country_configs.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'alembic/versions/009_add_country_configs.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'alembic/versions/009_add_country_configs.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/leave/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/leave/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/leave/routes.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'alembic/versions/010_add_leave_module.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'alembic/versions/010_add_leave_module.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'alembic/versions/010_add_leave_module.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/employees/schemas.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/employees/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/employees/services.py', 'modules/employees/schemas.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'update_employee_fields.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'update_employee_fields.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'update_employee_fields.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'update_employee_fields.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'update_employee_fields.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'update_employee_fields.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'update_employee_fields.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'sync_contracts_to_employment.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'sync_contracts_to_employment.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'sync_contracts_to_employment.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'sync_contracts_to_employment.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'sync_contracts_to_employment.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/models.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+WARNING:  WatchFiles detected changes in 'modules/payroll/models.py', 'modules/payroll/services.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001fda1e0c0 (most recent call first):
+  <no Python frame>
+INFO:     Stopping reloader process [20787]

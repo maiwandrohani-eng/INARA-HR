@@ -69,23 +69,28 @@ export function PayrollForm({ open, onOpenChange }: PayrollFormProps) {
     setLoading(true)
 
     try {
+      // Calculate payment date (end of the selected month)
+      const paymentDate = new Date(parseInt(payPeriodYear), parseInt(payPeriodMonth), 0)
+      const paymentDateStr = paymentDate.toISOString().split('T')[0]
+
       const payrollData = {
-        employee_id: employeeId,
-        employee_name: selectedEmployee ? getEmployeeFullName(selectedEmployee) : '',
-        pay_period_month: payPeriodMonth,
-        pay_period_year: parseInt(payPeriodYear),
-        basic_salary: parseFloat(basicSalary),
-        allowances: parseFloat(allowances) || 0,
-        bonuses: parseFloat(bonuses) || 0,
-        overtime_hours: parseFloat(overtimeHours) || 0,
-        overtime_rate: parseFloat(overtimeRate) || 0,
-        overtime_pay: overtimePay,
-        gross_pay: grossPay,
-        deductions: parseFloat(deductions) || 0,
-        tax_amount: parseFloat(taxAmount) || 0,
-        total_deductions: totalDeductions,
-        net_pay: netPay,
-        status: 'processed',
+        month: parseInt(payPeriodMonth),
+        year: parseInt(payPeriodYear),
+        payment_date: paymentDateStr,
+        entries: [
+          {
+            employee_id: employeeId,
+            employee_number: selectedEmployee?.employee_number || '',
+            first_name: selectedEmployee?.first_name || '',
+            last_name: selectedEmployee?.last_name || '',
+            position: selectedEmployee?.position_id || null,
+            department: selectedEmployee?.department_id || null,
+            basic_salary: parseFloat(basicSalary),
+            allowances: parseFloat(allowances) || 0,
+            deductions: parseFloat(deductions) || 0,
+            currency: 'USD'
+          }
+        ]
       }
 
       const token = localStorage.getItem('access_token')
@@ -99,7 +104,9 @@ export function PayrollForm({ open, onOpenChange }: PayrollFormProps) {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to process payroll')
+        const errorData = await response.json()
+        console.error('Payroll creation failed:', errorData)
+        throw new Error(errorData.detail || 'Failed to process payroll')
       }
 
       const result = await response.json()
@@ -112,9 +119,10 @@ export function PayrollForm({ open, onOpenChange }: PayrollFormProps) {
       
       onOpenChange(false)
       resetForm()
+      if (onSuccess) onSuccess()
     } catch (error) {
       console.error('Error processing payroll:', error)
-      alert('Failed to process payroll. Please try again.')
+      alert(`Failed to process payroll: ${error instanceof Error ? error.message : 'Please try again.'}`)
     } finally {
       setLoading(false)
     }
@@ -253,6 +261,15 @@ export function PayrollForm({ open, onOpenChange }: PayrollFormProps) {
                     <SelectItem value="2024">2024</SelectItem>
                     <SelectItem value="2025">2025</SelectItem>
                     <SelectItem value="2026">2026</SelectItem>
+                    <SelectItem value="2027">2027</SelectItem>
+                    <SelectItem value="2028">2028</SelectItem>
+                    <SelectItem value="2029">2029</SelectItem>
+                    <SelectItem value="2030">2030</SelectItem>
+                    <SelectItem value="2031">2031</SelectItem>
+                    <SelectItem value="2032">2032</SelectItem>
+                    <SelectItem value="2033">2033</SelectItem>
+                    <SelectItem value="2034">2034</SelectItem>
+                    <SelectItem value="2035">2035</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

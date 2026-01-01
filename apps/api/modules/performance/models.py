@@ -65,6 +65,7 @@ class PerformanceReviewCycle(BaseModel, TenantMixin, AuditMixin, Base):
     acknowledged_date = Column(Date, nullable=True)
     
     # Relationships
+    employee = relationship("Employee", foreign_keys=[employee_id])
     evaluations = relationship("PerformanceEvaluation", back_populates="review_cycle", cascade="all, delete-orphan")
 
 
