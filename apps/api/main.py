@@ -386,9 +386,15 @@ if rate_limiting_enabled:
 # CORS Middleware
 # Support both specific origins and wildcard patterns for Vercel preview deployments
 cors_origins = settings.get_cors_origins()
-# Add regex pattern for Vercel preview deployments (*.vercel.app and *.vercel.app/*)
-# This allows all Vercel preview deployments automatically
-cors_origin_regex = r"https://.*\.vercel\.app"
+
+# Add custom domain and Vercel preview regex patterns
+# Allow: https://hrmis.inara.ngo (production domain)
+# Allow: *.vercel.app (all Vercel preview deployments)
+cors_origin_regex = r"https://.*\.vercel\.app|https://hrmis\.inara\.ngo"
+
+# Ensure custom domain is in allowed origins list
+if "https://hrmis.inara.ngo" not in cors_origins:
+    cors_origins.append("https://hrmis.inara.ngo")
 
 logger.info(f"CORS configured with origins: {cors_origins}")
 logger.info(f"CORS regex pattern: {cors_origin_regex}")
