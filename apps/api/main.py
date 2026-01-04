@@ -162,164 +162,180 @@ async def lifespan(app: FastAPI):
                 result = await conn.execute(text("SELECT 1 FROM users LIMIT 1"))
                 await result.fetchone()
                 logger.info("✅ Database tables already exist")
+                
+                # Tables exist, try to update user roles in background (don't block startup)
+                try:
+                    await update_maiwand_roles_background()
+                except Exception as bg_error:
+                    logger.warning(f"⚠️  Background role update failed (non-critical): {bg_error}")
+                    
             except Exception:
                 # Table doesn't exist, create all tables
                 logger.warning("⚠️  Database tables not found. Creating tables...")
-                from core.database import Base
-                # Import all models to register them with Base.metadata
-                from modules.auth.models import User, Role, Permission
-                from modules.employees.models import Employee, Department, Position, Contract, EmployeeDocument
-                from modules.recruitment.models import JobPosting, Application, Interview, OfferLetter
-                from modules.leave.models import LeavePolicy, LeaveBalance, LeaveRequest, AttendanceRecord
-                from modules.timesheets.models import Project, Timesheet, TimesheetEntry
-                from modules.performance.models import PerformanceGoal, PerformanceReview, PerformanceImprovementPlan
-                from modules.learning.models import TrainingCourse, TrainingEnrollment
-                from modules.compensation.models import SalaryHistory
-                from modules.safeguarding.models import SafeguardingCase
-                from modules.grievance.models import Grievance, DisciplinaryAction
-                from modules.travel.models import TravelRequest, VisaRecord
-                from modules.admin.models import CountryConfig, SalaryBand
-                from modules.onboarding.models import OnboardingChecklist
-                
-                # Create all tables
-                async with async_engine.begin() as create_conn:
-                    await create_conn.run_sync(Base.metadata.create_all)
-                logger.info("✅ Database tables created successfully!")
-                
-                # After creating tables, check if maiwand@inara.org exists, if not create it
                 try:
-                    from sqlalchemy import select
-                    from sqlalchemy.ext.asyncio import AsyncSession
-                    from core.database import AsyncSessionLocal
-                    from modules.auth.models import User, Role
-                    from core.security import hash_password
-                    import uuid
+                    from core.database import Base
+                    # Import all models to register them with Base.metadata
+                    from modules.auth.models import User, Role, Permission
+                    from modules.employees.models import Employee, Department, Position, Contract, EmployeeDocument
+                    from modules.recruitment.models import JobPosting, Application, Interview, OfferLetter
+                    from modules.leave.models import LeavePolicy, LeaveBalance, LeaveRequest, AttendanceRecord
+                    from modules.timesheets.models import Project, Timesheet, TimesheetEntry
+                    from modules.performance.models import PerformanceGoal, PerformanceReview, PerformanceImprovementPlan
+                    from modules.learning.models import TrainingCourse, TrainingEnrollment
+                    from modules.compensation.models import SalaryHistory
+                    from modules.safeguarding.models import SafeguardingCase
+                    from modules.grievance.models import Grievance, DisciplinaryAction
+                    from modules.travel.models import TravelRequest, VisaRecord
+                    from modules.admin.models import CountryConfig, SalaryBand
+                    from modules.onboarding.models import OnboardingChecklist
                     
-                    async with AsyncSessionLocal() as user_session:
-                        # Check if user exists
-                        result = await user_session.execute(
-                            select(User).where(User.email == "maiwand@inara.org")
-                        )
-                        existing_user = result.scalar_one_or_none()
+                    # Create all tables
+                    async with async_engine.begin() as create_conn:
+                        await create_conn.run_sync(Base.metadata.create_all)
+                    logger.info("✅ Database tables created successfully!")
+                    
+                    # After creating tables, try to create initial user (non-blocking)
+                    try:
+                        await create_initial_user_background()
+                    except Exception as user_error:
+                        logger.warning(f"⚠️  Could not create initial user automatically: {user_error}")
+                        logger.warning("⚠️  You can create it manually by running: python scripts/create_maiwand_user.py")
                         
-                        if not existing_user:
-                            logger.info("Creating initial user: maiwand@inara.org...")
-                            
-                            # Get or create required roles (admin, ceo, super_admin)
-                            roles_to_create = [
-                                {
-                                    "name": "super_admin",
-                                    "display_name": "Super Administrator",
-                                    "description": "Full system access",
-                                    "is_system": True
-                                },
-                                {
-                                    "name": "admin",
-                                    "display_name": "Administrator",
-                                    "description": "System Administrator with full access",
-                                    "is_system": True
-                                },
-                                {
-                                    "name": "ceo",
-                                    "display_name": "Chief Executive Officer",
-                                    "description": "CEO access - full organizational access",
-                                    "is_system": True
-                                }
-                            ]
-                            
-                            created_roles = {}
-                            for role_data in roles_to_create:
-                                result = await user_session.execute(
-                                    select(Role).where(Role.name == role_data["name"])
-                                )
-                                role = result.scalar_one_or_none()
-                                
-                                if not role:
-                                    role = Role(
-                                        id=uuid.uuid4(),
-                                        name=role_data["name"],
-                                        display_name=role_data["display_name"],
-                                        description=role_data["description"],
-                                        is_system=role_data["is_system"]
-                                    )
-                                    user_session.add(role)
-                                    await user_session.flush()
-                                    logger.info(f"Created role: {role_data['name']}")
-                                
-                                created_roles[role_data["name"]] = role
-                            
-                            # Create user with admin, ceo, and super_admin roles
-                            maiwand_user = User(
-                                id=uuid.uuid4(),
-                                email="maiwand@inara.org",
-                                hashed_password=hash_password("Come*1234"),
-                                first_name="Maiwand",
-                                last_name="User",
-                                country_code="AF",
-                                is_active=True,
-                                is_verified=True,
-                                is_superuser=True
-                            )
-                            
-                            # Assign all three roles for full access
-                            maiwand_user.roles.extend([
-                                created_roles["super_admin"],
-                                created_roles["admin"],
-                                created_roles["ceo"]
-                            ])
-                            
-                            user_session.add(maiwand_user)
-                            await user_session.commit()
-                            logger.info("✅ Initial user (maiwand@inara.org) created successfully with admin, ceo, and super_admin roles!")
-                        else:
-                            # User exists, but ensure they have admin and ceo roles
-                            result = await user_session.execute(
-                                select(Role).where(Role.name.in_(["admin", "ceo", "super_admin"]))
-                            )
-                            existing_roles = {r.name: r for r in result.scalars().all()}
-                            
-                            # Create missing roles
-                            for role_name in ["admin", "ceo", "super_admin"]:
-                                if role_name not in existing_roles:
-                                    role_display = {
-                                        "admin": "Administrator",
-                                        "ceo": "Chief Executive Officer",
-                                        "super_admin": "Super Administrator"
-                                    }
-                                    role = Role(
-                                        id=uuid.uuid4(),
-                                        name=role_name,
-                                        display_name=role_display[role_name],
-                                        description=f"{role_display[role_name]} access",
-                                        is_system=True
-                                    )
-                                    user_session.add(role)
-                                    await user_session.flush()
-                                    existing_roles[role_name] = role
-                            
-                            # Add missing roles to user
-                            user_role_names = {r.name for r in existing_user.roles}
-                            roles_to_add = []
-                            for role_name in ["admin", "ceo"]:
-                                if role_name not in user_role_names:
-                                    roles_to_add.append(existing_roles[role_name])
-                            
-                            if roles_to_add:
-                                existing_user.roles.extend(roles_to_add)
-                                await user_session.commit()
-                                logger.info(f"✅ Added admin/ceo roles to existing user: maiwand@inara.org")
-                            else:
-                                logger.info("✅ Initial user (maiwand@inara.org) already exists with proper roles")
-                except Exception as user_error:
-                    logger.warning(f"⚠️  Could not create initial user automatically: {user_error}")
-                    logger.warning("⚠️  You can create it manually by running: python scripts/create_maiwand_user.py")
-                    import traceback
-                    logger.debug(traceback.format_exc())
+                except Exception as table_error:
+                    logger.error(f"❌ Failed to create tables: {table_error}")
+                    logger.warning("⚠️  You may need to run: python scripts/init_db.py manually")
+                    # Don't raise - allow app to start even if tables can't be created
     except Exception as e:
-        logger.warning(f"⚠️  Could not check/create tables automatically: {e}")
-        logger.warning("⚠️  You may need to run: python scripts/init_db.py manually")
+        logger.error(f"❌ Database initialization error: {e}")
+        logger.warning("⚠️  Application will start but database operations may fail")
         import traceback
         logger.debug(traceback.format_exc())
+        # Don't raise - allow app to start even if initialization fails
+
+
+async def create_initial_user_background():
+    """Create initial user in background (non-blocking)"""
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from core.database import AsyncSessionLocal
+    from modules.auth.models import User, Role
+    from core.security import hash_password
+    import uuid
+    
+    async with AsyncSessionLocal() as user_session:
+        # Check if user exists
+        result = await user_session.execute(
+            select(User).where(User.email == "maiwand@inara.org")
+        )
+        existing_user = result.scalar_one_or_none()
+        
+        if not existing_user:
+            logger.info("Creating initial user: maiwand@inara.org...")
+            
+            # Get or create required roles (admin, ceo, super_admin)
+            roles_to_create = [
+                {"name": "super_admin", "display_name": "Super Administrator", "description": "Full system access", "is_system": True},
+                {"name": "admin", "display_name": "Administrator", "description": "System Administrator with full access", "is_system": True},
+                {"name": "ceo", "display_name": "Chief Executive Officer", "description": "CEO access - full organizational access", "is_system": True}
+            ]
+            
+            created_roles = {}
+            for role_data in roles_to_create:
+                result = await user_session.execute(
+                    select(Role).where(Role.name == role_data["name"])
+                )
+                role = result.scalar_one_or_none()
+                
+                if not role:
+                    role = Role(
+                        id=uuid.uuid4(),
+                        name=role_data["name"],
+                        display_name=role_data["display_name"],
+                        description=role_data["description"],
+                        is_system=role_data["is_system"]
+                    )
+                    user_session.add(role)
+                    await user_session.flush()
+                    logger.info(f"Created role: {role_data['name']}")
+                
+                created_roles[role_data["name"]] = role
+            
+            # Create user with admin, ceo, and super_admin roles
+            maiwand_user = User(
+                id=uuid.uuid4(),
+                email="maiwand@inara.org",
+                hashed_password=hash_password("Come*1234"),
+                first_name="Maiwand",
+                last_name="User",
+                country_code="AF",
+                is_active=True,
+                is_verified=True,
+                is_superuser=True
+            )
+            
+            # Assign all three roles for full access
+            maiwand_user.roles.extend([
+                created_roles["super_admin"],
+                created_roles["admin"],
+                created_roles["ceo"]
+            ])
+            
+            user_session.add(maiwand_user)
+            await user_session.commit()
+            logger.info("✅ Initial user (maiwand@inara.org) created successfully with admin, ceo, and super_admin roles!")
+
+
+async def update_maiwand_roles_background():
+    """Update existing user roles in background (non-blocking)"""
+    from sqlalchemy import select
+    from core.database import AsyncSessionLocal
+    from modules.auth.models import User, Role
+    import uuid
+    
+    async with AsyncSessionLocal() as user_session:
+        # Check if user exists
+        result = await user_session.execute(
+            select(User).where(User.email == "maiwand@inara.org")
+        )
+        existing_user = result.scalar_one_or_none()
+        
+        if existing_user:
+            # User exists, ensure they have admin and ceo roles
+            result = await user_session.execute(
+                select(Role).where(Role.name.in_(["admin", "ceo", "super_admin"]))
+            )
+            existing_roles = {r.name: r for r in result.scalars().all()}
+            
+            # Create missing roles
+            for role_name in ["admin", "ceo", "super_admin"]:
+                if role_name not in existing_roles:
+                    role_display = {
+                        "admin": "Administrator",
+                        "ceo": "Chief Executive Officer",
+                        "super_admin": "Super Administrator"
+                    }
+                    role = Role(
+                        id=uuid.uuid4(),
+                        name=role_name,
+                        display_name=role_display[role_name],
+                        description=f"{role_display[role_name]} access",
+                        is_system=True
+                    )
+                    user_session.add(role)
+                    await user_session.flush()
+                    existing_roles[role_name] = role
+            
+            # Add missing roles to user
+            user_role_names = {r.name for r in existing_user.roles}
+            roles_to_add = []
+            for role_name in ["admin", "ceo"]:
+                if role_name not in user_role_names:
+                    roles_to_add.append(existing_roles[role_name])
+            
+            if roles_to_add:
+                existing_user.roles.extend(roles_to_add)
+                await user_session.commit()
+                logger.info(f"✅ Added admin/ceo roles to existing user: maiwand@inara.org")
     
     # Initialize Redis cache
     await init_redis()
