@@ -72,13 +72,22 @@ class AuthService {
   async getCurrentUser(): Promise<User> {
     const response = await apiClient.get<ApiUser>('/auth/me')
     
+    console.log('🔍 Raw API response:', response.data)
+    console.log('🔍 Raw roles from API:', response.data.roles)
+    
     // Transform API response to match User interface
     // API returns roles as objects with {id, name, display_name}, we need just the names
-    return {
+    const transformedUser = {
       ...response.data,
-      roles: response.data.roles.map(role => role.name),
+      roles: (response.data.roles || []).map(role => {
+        // Handle both object format {name: 'admin'} and string format 'admin'
+        return typeof role === 'string' ? role : (role.name || role)
+      }),
       permissions: response.data.permissions || []
     }
+    
+    console.log('🔍 Transformed roles:', transformedUser.roles)
+    return transformedUser
   }
 
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {

@@ -31,6 +31,9 @@ export const useAuthStore = create<AuthState>()(
           console.log('✅ Login successful, fetching user...')
           const user = await authService.getCurrentUser()
           console.log('✅ User fetched:', user)
+          console.log('📋 User roles:', user.roles)
+          console.log('📋 User permissions:', user.permissions)
+          console.log('👑 Is admin?', user.roles?.includes('admin') || user.roles?.includes('ceo') || user.roles?.includes('super_admin'))
           set({ user, isAuthenticated: true, isLoading: false })
         } catch (error) {
           console.error('❌ Login error:', error)
