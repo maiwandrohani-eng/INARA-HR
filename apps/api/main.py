@@ -185,6 +185,64 @@ async def lifespan(app: FastAPI):
                 async with async_engine.begin() as create_conn:
                     await create_conn.run_sync(Base.metadata.create_all)
                 logger.info("✅ Database tables created successfully!")
+                
+                # After creating tables, check if maiwand@inara.org exists, if not create it
+                try:
+                    from sqlalchemy import select
+                    from sqlalchemy.ext.asyncio import AsyncSession
+                    from core.database import AsyncSessionLocal
+                    from modules.auth.models import User, Role
+                    from core.security import hash_password
+                    import uuid
+                    
+                    async with AsyncSessionLocal() as user_session:
+                        # Check if user exists
+                        result = await user_session.execute(
+                            select(User).where(User.email == "maiwand@inara.org")
+                        )
+                        existing_user = result.scalar_one_or_none()
+                        
+                        if not existing_user:
+                            logger.info("Creating initial user: maiwand@inara.org...")
+                            
+                            # Get or create super_admin role
+                            result = await user_session.execute(
+                                select(Role).where(Role.name == "super_admin")
+                            )
+                            super_admin_role = result.scalar_one_or_none()
+                            
+                            if not super_admin_role:
+                                super_admin_role = Role(
+                                    id=uuid.uuid4(),
+                                    name="super_admin",
+                                    display_name="Super Administrator",
+                                    description="Full system access",
+                                    is_system=True
+                                )
+                                user_session.add(super_admin_role)
+                                await user_session.flush()
+                            
+                            # Create user
+                            maiwand_user = User(
+                                id=uuid.uuid4(),
+                                email="maiwand@inara.org",
+                                hashed_password=hash_password("Come*1234"),
+                                first_name="Maiwand",
+                                last_name="User",
+                                country_code="AF",
+                                is_active=True,
+                                is_verified=True,
+                                is_superuser=True
+                            )
+                            maiwand_user.roles.append(super_admin_role)
+                            user_session.add(maiwand_user)
+                            await user_session.commit()
+                            logger.info("✅ Initial user (maiwand@inara.org) created successfully!")
+                        else:
+                            logger.info("✅ Initial user (maiwand@inara.org) already exists")
+                except Exception as user_error:
+                    logger.warning(f"⚠️  Could not create initial user automatically: {user_error}")
+                    logger.warning("⚠️  You can create it manually by running: python scripts/create_maiwand_user.py")
     except Exception as e:
         logger.warning(f"⚠️  Could not check/create tables automatically: {e}")
         logger.warning("⚠️  You may need to run: python scripts/init_db.py manually")
