@@ -152,6 +152,45 @@ async def lifespan(app: FastAPI):
         logger.error("❌ Failed to connect to database. Please check your DATABASE_ASYNC_URL configuration.")
         raise Exception("Database connection failed")
     
+    # Check if tables exist, create if they don't
+    from sqlalchemy import text
+    from core.database import async_engine
+    try:
+        # Try to query the users table to check if it exists
+        async with async_engine.connect() as conn:
+            try:
+                result = await conn.execute(text("SELECT 1 FROM users LIMIT 1"))
+                await result.fetchone()
+                logger.info("✅ Database tables already exist")
+            except Exception:
+                # Table doesn't exist, create all tables
+                logger.warning("⚠️  Database tables not found. Creating tables...")
+                from core.database import Base
+                # Import all models to register them with Base.metadata
+                from modules.auth.models import User, Role, Permission
+                from modules.employees.models import Employee, Department, Position, Contract, EmployeeDocument
+                from modules.recruitment.models import JobPosting, Application, Interview, OfferLetter
+                from modules.leave.models import LeavePolicy, LeaveBalance, LeaveRequest, AttendanceRecord
+                from modules.timesheets.models import Project, Timesheet, TimesheetEntry
+                from modules.performance.models import PerformanceGoal, PerformanceReview, PerformanceImprovementPlan
+                from modules.learning.models import TrainingCourse, TrainingEnrollment
+                from modules.compensation.models import SalaryHistory
+                from modules.safeguarding.models import SafeguardingCase
+                from modules.grievance.models import Grievance, DisciplinaryAction
+                from modules.travel.models import TravelRequest, VisaRecord
+                from modules.admin.models import CountryConfig, SalaryBand
+                from modules.onboarding.models import OnboardingChecklist
+                
+                # Create all tables
+                async with async_engine.begin() as create_conn:
+                    await create_conn.run_sync(Base.metadata.create_all)
+                logger.info("✅ Database tables created successfully!")
+    except Exception as e:
+        logger.warning(f"⚠️  Could not check/create tables automatically: {e}")
+        logger.warning("⚠️  You may need to run: python scripts/init_db.py manually")
+        import traceback
+        logger.debug(traceback.format_exc())
+    
     # Initialize Redis cache
     await init_redis()
     
