@@ -205,24 +205,50 @@ async def lifespan(app: FastAPI):
                         if not existing_user:
                             logger.info("Creating initial user: maiwand@inara.org...")
                             
-                            # Get or create super_admin role
-                            result = await user_session.execute(
-                                select(Role).where(Role.name == "super_admin")
-                            )
-                            super_admin_role = result.scalar_one_or_none()
+                            # Get or create required roles (admin, ceo, super_admin)
+                            roles_to_create = [
+                                {
+                                    "name": "super_admin",
+                                    "display_name": "Super Administrator",
+                                    "description": "Full system access",
+                                    "is_system": True
+                                },
+                                {
+                                    "name": "admin",
+                                    "display_name": "Administrator",
+                                    "description": "System Administrator with full access",
+                                    "is_system": True
+                                },
+                                {
+                                    "name": "ceo",
+                                    "display_name": "Chief Executive Officer",
+                                    "description": "CEO access - full organizational access",
+                                    "is_system": True
+                                }
+                            ]
                             
-                            if not super_admin_role:
-                                super_admin_role = Role(
-                                    id=uuid.uuid4(),
-                                    name="super_admin",
-                                    display_name="Super Administrator",
-                                    description="Full system access",
-                                    is_system=True
+                            created_roles = {}
+                            for role_data in roles_to_create:
+                                result = await user_session.execute(
+                                    select(Role).where(Role.name == role_data["name"])
                                 )
-                                user_session.add(super_admin_role)
-                                await user_session.flush()
+                                role = result.scalar_one_or_none()
+                                
+                                if not role:
+                                    role = Role(
+                                        id=uuid.uuid4(),
+                                        name=role_data["name"],
+                                        display_name=role_data["display_name"],
+                                        description=role_data["description"],
+                                        is_system=role_data["is_system"]
+                                    )
+                                    user_session.add(role)
+                                    await user_session.flush()
+                                    logger.info(f"Created role: {role_data['name']}")
+                                
+                                created_roles[role_data["name"]] = role
                             
-                            # Create user
+                            # Create user with admin, ceo, and super_admin roles
                             maiwand_user = User(
                                 id=uuid.uuid4(),
                                 email="maiwand@inara.org",
@@ -234,15 +260,61 @@ async def lifespan(app: FastAPI):
                                 is_verified=True,
                                 is_superuser=True
                             )
-                            maiwand_user.roles.append(super_admin_role)
+                            
+                            # Assign all three roles for full access
+                            maiwand_user.roles.extend([
+                                created_roles["super_admin"],
+                                created_roles["admin"],
+                                created_roles["ceo"]
+                            ])
+                            
                             user_session.add(maiwand_user)
                             await user_session.commit()
-                            logger.info("✅ Initial user (maiwand@inara.org) created successfully!")
+                            logger.info("✅ Initial user (maiwand@inara.org) created successfully with admin, ceo, and super_admin roles!")
                         else:
-                            logger.info("✅ Initial user (maiwand@inara.org) already exists")
+                            # User exists, but ensure they have admin and ceo roles
+                            result = await user_session.execute(
+                                select(Role).where(Role.name.in_(["admin", "ceo", "super_admin"]))
+                            )
+                            existing_roles = {r.name: r for r in result.scalars().all()}
+                            
+                            # Create missing roles
+                            for role_name in ["admin", "ceo", "super_admin"]:
+                                if role_name not in existing_roles:
+                                    role_display = {
+                                        "admin": "Administrator",
+                                        "ceo": "Chief Executive Officer",
+                                        "super_admin": "Super Administrator"
+                                    }
+                                    role = Role(
+                                        id=uuid.uuid4(),
+                                        name=role_name,
+                                        display_name=role_display[role_name],
+                                        description=f"{role_display[role_name]} access",
+                                        is_system=True
+                                    )
+                                    user_session.add(role)
+                                    await user_session.flush()
+                                    existing_roles[role_name] = role
+                            
+                            # Add missing roles to user
+                            user_role_names = {r.name for r in existing_user.roles}
+                            roles_to_add = []
+                            for role_name in ["admin", "ceo"]:
+                                if role_name not in user_role_names:
+                                    roles_to_add.append(existing_roles[role_name])
+                            
+                            if roles_to_add:
+                                existing_user.roles.extend(roles_to_add)
+                                await user_session.commit()
+                                logger.info(f"✅ Added admin/ceo roles to existing user: maiwand@inara.org")
+                            else:
+                                logger.info("✅ Initial user (maiwand@inara.org) already exists with proper roles")
                 except Exception as user_error:
                     logger.warning(f"⚠️  Could not create initial user automatically: {user_error}")
                     logger.warning("⚠️  You can create it manually by running: python scripts/create_maiwand_user.py")
+                    import traceback
+                    logger.debug(traceback.format_exc())
     except Exception as e:
         logger.warning(f"⚠️  Could not check/create tables automatically: {e}")
         logger.warning("⚠️  You may need to run: python scripts/init_db.py manually")

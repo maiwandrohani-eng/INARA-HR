@@ -33,25 +33,51 @@ async def create_maiwand_user():
                 print(f"   Superuser: {existing_user.is_superuser}")
                 return
             
-            # Get or create super_admin role
-            result = await session.execute(
-                select(Role).where(Role.name == "super_admin")
-            )
-            super_admin_role = result.scalar_one_or_none()
+            # Get or create required roles (admin, ceo, super_admin)
+            roles_to_create = [
+                {
+                    "name": "super_admin",
+                    "display_name": "Super Administrator",
+                    "description": "Full system access",
+                    "is_system": True
+                },
+                {
+                    "name": "admin",
+                    "display_name": "Administrator",
+                    "description": "System Administrator with full access",
+                    "is_system": True
+                },
+                {
+                    "name": "ceo",
+                    "display_name": "Chief Executive Officer",
+                    "description": "CEO access - full organizational access",
+                    "is_system": True
+                }
+            ]
             
-            if not super_admin_role:
-                # Create super_admin role if it doesn't exist
-                print("⚠️  super_admin role not found. Creating it...")
-                super_admin_role = Role(
-                    id=uuid.uuid4(),
-                    name="super_admin",
-                    display_name="Super Administrator",
-                    description="Full system access",
-                    is_system=True
+            created_roles = {}
+            for role_data in roles_to_create:
+                result = await session.execute(
+                    select(Role).where(Role.name == role_data["name"])
                 )
-                session.add(super_admin_role)
-                await session.flush()
-                print("✅ Created super_admin role")
+                role = result.scalar_one_or_none()
+                
+                if not role:
+                    print(f"⚠️  {role_data['name']} role not found. Creating it...")
+                    role = Role(
+                        id=uuid.uuid4(),
+                        name=role_data["name"],
+                        display_name=role_data["display_name"],
+                        description=role_data["description"],
+                        is_system=role_data["is_system"]
+                    )
+                    session.add(role)
+                    await session.flush()
+                    print(f"✅ Created {role_data['name']} role")
+                else:
+                    print(f"✅ Found existing {role_data['name']} role")
+                
+                created_roles[role_data["name"]] = role
             
             # Create Maiwand user
             print("Creating user: maiwand@inara.org...")
@@ -67,8 +93,12 @@ async def create_maiwand_user():
                 is_superuser=True
             )
             
-            # Assign super_admin role
-            maiwand_user.roles.append(super_admin_role)
+            # Assign all three roles for full access (admin, ceo, super_admin)
+            maiwand_user.roles.extend([
+                created_roles["super_admin"],
+                created_roles["admin"],
+                created_roles["ceo"]
+            ])
             
             session.add(maiwand_user)
             await session.commit()
