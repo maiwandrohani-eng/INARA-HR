@@ -273,9 +273,16 @@ async def lifespan(app: FastAPI):
     
     # Verify database connection
     logger.info("Verifying database connection...")
-    if not await verify_db_connection():
-        logger.error("❌ Failed to connect to database. Please check your DATABASE_ASYNC_URL configuration.")
-        raise Exception("Database connection failed")
+    try:
+        db_connected = await verify_db_connection()
+        if not db_connected:
+            logger.error("❌ Failed to connect to database. Please check your DATABASE_ASYNC_URL configuration.")
+            logger.warning("⚠️  Application will start but database operations may fail")
+        else:
+            logger.info("✅ Database connection verified")
+    except Exception as db_conn_error:
+        logger.error(f"❌ Database connection error: {db_conn_error}")
+        logger.warning("⚠️  Application will start but database operations may fail")
     
     # Check if tables exist, create if they don't
     from sqlalchemy import text
