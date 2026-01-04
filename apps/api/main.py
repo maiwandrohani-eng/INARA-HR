@@ -201,9 +201,15 @@ if rate_limiting_enabled:
 # ============================================
 
 # CORS Middleware
+# Support both specific origins and wildcard patterns for Vercel preview deployments
+cors_origins = settings.get_cors_origins()
+# Add regex pattern for Vercel preview deployments (*.vercel.app)
+cors_origin_regex = r"https://.*\.vercel\.app"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.get_cors_origins(),
+    allow_origins=cors_origins,
+    allow_origin_regex=cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
