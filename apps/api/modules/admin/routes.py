@@ -200,9 +200,12 @@ async def fix_my_roles(
         )
     
     try:
-        # Get the user from database
+        # Get the user from database with roles eagerly loaded
+        from sqlalchemy.orm import selectinload
         result = await db.execute(
-            select(User).where(User.email == user_email)
+            select(User)
+            .options(selectinload(User.roles))
+            .where(User.email == user_email)
         )
         user = result.scalar_one_or_none()
         
