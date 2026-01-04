@@ -344,12 +344,21 @@ async def lifespan(app: FastAPI):
         logger.debug(traceback.format_exc())
         # Don't raise - allow app to start even if initialization fails
     
-    # Initialize Redis cache
-    await init_redis()
+    # Initialize Redis cache (non-blocking)
+    try:
+        await init_redis()
+        logger.info("✅ Redis cache initialized")
+    except Exception as redis_error:
+        logger.warning(f"⚠️  Redis initialization failed (non-critical): {redis_error}")
+        logger.warning("⚠️  Application will continue without Redis caching")
     
-    # Start database monitoring
-    db_monitor.start_monitoring()
-    logger.info("📊 Database monitoring enabled")
+    # Start database monitoring (non-blocking)
+    try:
+        db_monitor.start_monitoring()
+        logger.info("📊 Database monitoring enabled")
+    except Exception as monitor_error:
+        logger.warning(f"⚠️  Database monitoring initialization failed (non-critical): {monitor_error}")
+        logger.warning("⚠️  Application will continue without monitoring")
     
     logger.info("✅ All systems initialized successfully")
     
