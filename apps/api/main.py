@@ -245,17 +245,19 @@ async def update_maiwand_roles_background():
                     await user_session.flush()
                     existing_roles[role_name] = role
             
-            # Add missing roles to user
+            # Add missing roles to user (include super_admin as well)
             user_role_names = {r.name for r in existing_user.roles}
             roles_to_add = []
-            for role_name in ["admin", "ceo"]:
+            for role_name in ["admin", "ceo", "super_admin"]:
                 if role_name not in user_role_names:
                     roles_to_add.append(existing_roles[role_name])
             
             if roles_to_add:
                 existing_user.roles.extend(roles_to_add)
                 await user_session.commit()
-                logger.info(f"✅ Added admin/ceo roles to existing user: maiwand@inara.org")
+                logger.info(f"✅ Added roles {[r.name for r in roles_to_add]} to existing user: maiwand@inara.org")
+            else:
+                logger.info(f"✅ User maiwand@inara.org already has all required roles: {list(user_role_names)}")
 
 
 @asynccontextmanager

@@ -6,13 +6,16 @@ Administrative functions and system management
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from io import BytesIO
 import os
 import re
+import uuid
 
 from core.database import get_db
 from core.dependencies import get_current_user
 from core.pdf_generator import create_user_manual_pdf
+from modules.auth.models import User, Role
 
 router = APIRouter(tags=["admin"])
 
@@ -176,3 +179,92 @@ def markdown_to_html(markdown_text: str) -> str:
     """
     
     return html_doc
+
+
+@router.post("/fix-my-roles")
+async def fix_my_roles(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Fix admin/ceo roles for the current user (maiwand@inara.org only, or users who can't access admin)
+    This endpoint helps recover admin access if roles are missing.
+    """
+    user_email = current_user.get("email", "")
+    
+    # Only allow fixing maiwand@inara.org or if user already has some admin access
+    if user_email != "maiwand@inara.org" and not any(role in current_user.get("roles", []) for role in ["admin", "ceo", "super_admin"]):
+        raise HTTPException(
+            status_code=403,
+            detail="This endpoint can only be used by maiwand@inara.org or existing admins"
+        )
+    
+    try:
+        # Get the user from database
+        result = await db.execute(
+            select(User).where(User.email == user_email)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Ensure admin, ceo, and super_admin roles exist
+        roles_to_ensure = ["super_admin", "admin", "ceo"]
+        existing_roles = {}
+        
+        for role_name in roles_to_ensure:
+            result = await db.execute(
+                select(Role).where(Role.name == role_name)
+            )
+            role = result.scalar_one_or_none()
+            
+            if not role:
+                role_display = {
+                    "super_admin": "Super Administrator",
+                    "admin": "Administrator",
+                    "ceo": "Chief Executive Officer"
+                }.get(role_name, role_name.replace('_', ' ').title())
+                
+                role = Role(
+                    id=uuid.uuid4(),
+                    name=role_name,
+                    display_name=role_display,
+                    description=f"{role_display} access",
+                    is_system=True
+                )
+                db.add(role)
+                await db.flush()
+            
+            existing_roles[role_name] = role
+        
+        # Add missing roles to the user
+        user_current_role_names = {r.name for r in user.roles}
+        roles_added = []
+        
+        for role_name in ["admin", "ceo", "super_admin"]:
+            if role_name not in user_current_role_names:
+                user.roles.append(existing_roles[role_name])
+                roles_added.append(role_name)
+        
+        if roles_added:
+            await db.commit()
+            await db.refresh(user, ["roles"])
+            
+            return {
+                "success": True,
+                "message": f"Added roles: {', '.join(roles_added)}",
+                "user_email": user_email,
+                "roles": [r.name for r in user.roles]
+            }
+        else:
+            return {
+                "success": True,
+                "message": "User already has all required roles",
+                "user_email": user_email,
+                "roles": [r.name for r in user.roles]
+            }
+            
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error fixing roles: {str(e)}")
