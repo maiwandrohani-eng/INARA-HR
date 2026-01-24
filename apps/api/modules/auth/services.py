@@ -224,8 +224,10 @@ class AuthService:
             generated_password = generate_secure_password(12)
             user_data.password = generated_password
         
-        # Create user
+        # Create user with auto-verification for admin-created accounts
         user_dict = user_data.model_dump(exclude={'role_ids', 'employee_id'})
+        # Admin-created users should be auto-verified (no email verification needed)
+        user_dict['is_verified'] = True
         user = await self.user_repo.create(user_dict)
         await self.db.flush()
         
