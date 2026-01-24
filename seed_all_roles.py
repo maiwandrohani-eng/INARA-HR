@@ -21,52 +21,96 @@ async def seed_all_roles():
     async with AsyncSessionLocal() as session:
         try:
             print("\n" + "="*70)
-            print("SEEDING ALL REQUIRED ROLES")
+            print("SEEDING ALL REQUIRED ROLES AND PERMISSIONS")
             print("="*70)
             
-            # Define all roles that should exist
+            # First, create permissions
+            from modules.auth.models import Permission
+            
+            permissions_to_create = [
+                {"name": "hr:read", "resource": "hr", "action": "read", "description": "Read HR data"},
+                {"name": "hr:write", "resource": "hr", "action": "write", "description": "Write/update HR data"},
+                {"name": "hr:admin", "resource": "hr", "action": "admin", "description": "Full HR administration"},
+                {"name": "admin:all", "resource": "admin", "action": "all", "description": "Full system administration"},
+            ]
+            
+            created_permissions = {}
+            permissions_created = 0
+            for perm_data in permissions_to_create:
+                result = await session.execute(
+                    select(Permission).where(Permission.name == perm_data["name"])
+                )
+                perm = result.scalar_one_or_none()
+                
+                if not perm:
+                    perm = Permission(
+                        id=uuid.uuid4(),
+                        name=perm_data["name"],
+                        resource=perm_data["resource"],
+                        action=perm_data["action"],
+                        description=perm_data["description"]
+                    )
+                    session.add(perm)
+                    permissions_created += 1
+                    print(f"✓ Created permission: {perm_data['name']}")
+                else:
+                    print(f"- Permission already exists: {perm_data['name']}")
+                
+                created_permissions[perm_data["name"]] = perm
+            
+            if permissions_created > 0:
+                await session.flush()
+            
+            # Define all roles that should exist with their permissions
             roles_to_create = [
                 {
                     "name": "super_admin",
                     "display_name": "Super Administrator",
                     "description": "Full system access",
-                    "is_system": True
+                    "is_system": True,
+                    "permissions": ["admin:all", "hr:admin", "hr:read", "hr:write"]
                 },
                 {
                     "name": "admin",
                     "display_name": "Administrator",
                     "description": "System Administrator with full access",
-                    "is_system": True
+                    "is_system": True,
+                    "permissions": ["admin:all", "hr:admin", "hr:read", "hr:write"]
                 },
                 {
                     "name": "ceo",
                     "display_name": "Chief Executive Officer",
                     "description": "CEO access - full organizational access",
-                    "is_system": True
+                    "is_system": True,
+                    "permissions": ["admin:all", "hr:admin", "hr:read", "hr:write"]
                 },
                 {
                     "name": "hr_admin",
                     "display_name": "HR Administrator",
                     "description": "HR Administrator - full HR access",
-                    "is_system": True
+                    "is_system": True,
+                    "permissions": ["hr:admin", "hr:read", "hr:write"]
                 },
                 {
                     "name": "hr_manager",
                     "display_name": "HR Manager",
                     "description": "HR Manager - read/write access",
-                    "is_system": True
+                    "is_system": True,
+                    "permissions": ["hr:read", "hr:write"]
                 },
                 {
                     "name": "finance_manager",
                     "display_name": "Finance Manager",
                     "description": "Finance Manager - payroll and finance access",
-                    "is_system": True
+                    "is_system": True,
+                    "permissions": ["hr:read", "hr:write"]
                 },
                 {
                     "name": "employee",
                     "display_name": "Employee",
                     "description": "Regular Employee - basic access",
-                    "is_system": False
+                    "is_system": False,
+                    "permissions": ["hr:read"]
                 }
             ]
             
@@ -88,17 +132,24 @@ async def seed_all_roles():
                         description=role_data["description"],
                         is_system=role_data["is_system"]
                     )
+                    # Assign permissions to role
+                    for perm_name in role_data["permissions"]:
+                        if perm_name in created_permissions:
+                            role.permissions.append(created_permissions[perm_name])
+                    
                     session.add(role)
                     roles_created += 1
-                    print(f"✓ Created role: {role_data['name']} ({role_data['display_name']})")
+                    print(f"✓ Created role: {role_data['name']} ({role_data['display_name']}) with {len(role_data['permissions'])} permissions")
                 else:
                     print(f"- Role already exists: {role_data['name']}")
             
-            if roles_created > 0:
+            if roles_created > 0 or permissions_created > 0:
                 await session.commit()
-                print(f"\n✅ Successfully created {roles_created} new role(s)")
+                print(f"\n✅ Successfully created:")
+                print(f"   - {permissions_created} new permission(s)")
+                print(f"   - {roles_created} new role(s)")
             else:
-                print(f"\n✅ All roles already exist - no changes needed")
+                print(f"\n✅ All roles and permissions already exist - no changes needed")
             
             # Show final count
             result = await session.execute(select(Role))

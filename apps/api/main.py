@@ -138,7 +138,7 @@ async def create_initial_user_background():
     """Create initial user in background (non-blocking)"""
     from sqlalchemy import select
     from core.database import AsyncSessionLocal
-    from modules.auth.models import User, Role
+    from modules.auth.models import User, Role, Permission
     from core.security import hash_password
     import uuid
     
@@ -152,15 +152,44 @@ async def create_initial_user_background():
         if not existing_user:
             logger.info("Creating initial user: maiwand@inara.org...")
             
-            # Get or create ALL required roles
+            # First, create permissions if they don't exist
+            permissions_to_create = [
+                {"name": "hr:read", "resource": "hr", "action": "read", "description": "Read HR data"},
+                {"name": "hr:write", "resource": "hr", "action": "write", "description": "Write/update HR data"},
+                {"name": "hr:admin", "resource": "hr", "action": "admin", "description": "Full HR administration"},
+                {"name": "admin:all", "resource": "admin", "action": "all", "description": "Full system administration"},
+            ]
+            
+            created_permissions = {}
+            for perm_data in permissions_to_create:
+                result = await user_session.execute(
+                    select(Permission).where(Permission.name == perm_data["name"])
+                )
+                perm = result.scalar_one_or_none()
+                
+                if not perm:
+                    perm = Permission(
+                        id=uuid.uuid4(),
+                        name=perm_data["name"],
+                        resource=perm_data["resource"],
+                        action=perm_data["action"],
+                        description=perm_data["description"]
+                    )
+                    user_session.add(perm)
+                    await user_session.flush()
+                    logger.info(f"Created permission: {perm_data['name']}")
+                
+                created_permissions[perm_data["name"]] = perm
+            
+            # Get or create ALL required roles with their permissions
             roles_to_create = [
-                {"name": "super_admin", "display_name": "Super Administrator", "description": "Full system access", "is_system": True},
-                {"name": "admin", "display_name": "Administrator", "description": "System Administrator with full access", "is_system": True},
-                {"name": "ceo", "display_name": "Chief Executive Officer", "description": "CEO access - full organizational access", "is_system": True},
-                {"name": "hr_admin", "display_name": "HR Administrator", "description": "HR Administrator - full HR access", "is_system": True},
-                {"name": "hr_manager", "display_name": "HR Manager", "description": "HR Manager - read/write access", "is_system": True},
-                {"name": "finance_manager", "display_name": "Finance Manager", "description": "Finance Manager - payroll and finance access", "is_system": True},
-                {"name": "employee", "display_name": "Employee", "description": "Regular Employee - basic access", "is_system": False}
+                {"name": "super_admin", "display_name": "Super Administrator", "description": "Full system access", "is_system": True, "permissions": ["admin:all", "hr:admin", "hr:read", "hr:write"]},
+                {"name": "admin", "display_name": "Administrator", "description": "System Administrator with full access", "is_system": True, "permissions": ["admin:all", "hr:admin", "hr:read", "hr:write"]},
+                {"name": "ceo", "display_name": "Chief Executive Officer", "description": "CEO access - full organizational access", "is_system": True, "permissions": ["admin:all", "hr:admin", "hr:read", "hr:write"]},
+                {"name": "hr_admin", "display_name": "HR Administrator", "description": "HR Administrator - full HR access", "is_system": True, "permissions": ["hr:admin", "hr:read", "hr:write"]},
+                {"name": "hr_manager", "display_name": "HR Manager", "description": "HR Manager - read/write access", "is_system": True, "permissions": ["hr:read", "hr:write"]},
+                {"name": "finance_manager", "display_name": "Finance Manager", "description": "Finance Manager - payroll and finance access", "is_system": True, "permissions": ["hr:read", "hr:write"]},
+                {"name": "employee", "display_name": "Employee", "description": "Regular Employee - basic access", "is_system": False, "permissions": ["hr:read"]}
             ]
             
             created_roles = {}
@@ -178,9 +207,14 @@ async def create_initial_user_background():
                         description=role_data["description"],
                         is_system=role_data["is_system"]
                     )
+                    # Assign permissions to role
+                    for perm_name in role_data["permissions"]:
+                        if perm_name in created_permissions:
+                            role.permissions.append(created_permissions[perm_name])
+                    
                     user_session.add(role)
                     await user_session.flush()
-                    logger.info(f"Created role: {role_data['name']}")
+                    logger.info(f"Created role: {role_data['name']} with {len(role_data['permissions'])} permissions")
                 
                 created_roles[role_data["name"]] = role
             
@@ -213,10 +247,38 @@ async def update_maiwand_roles_background():
     """Update existing user roles in background (non-blocking)"""
     from sqlalchemy import select
     from core.database import AsyncSessionLocal
-    from modules.auth.models import User, Role
+    from modules.auth.models import User, Role, Permission
     import uuid
     
     async with AsyncSessionLocal() as user_session:
+        # First, ensure permissions exist
+        permissions_to_create = [
+            {"name": "hr:read", "resource": "hr", "action": "read", "description": "Read HR data"},
+            {"name": "hr:write", "resource": "hr", "action": "write", "description": "Write/update HR data"},
+            {"name": "hr:admin", "resource": "hr", "action": "admin", "description": "Full HR administration"},
+            {"name": "admin:all", "resource": "admin", "action": "all", "description": "Full system administration"},
+        ]
+        
+        created_permissions = {}
+        for perm_data in permissions_to_create:
+            result = await user_session.execute(
+                select(Permission).where(Permission.name == perm_data["name"])
+            )
+            perm = result.scalar_one_or_none()
+            
+            if not perm:
+                perm = Permission(
+                    id=uuid.uuid4(),
+                    name=perm_data["name"],
+                    resource=perm_data["resource"],
+                    action=perm_data["action"],
+                    description=perm_data["description"]
+                )
+                user_session.add(perm)
+                await user_session.flush()
+            
+            created_permissions[perm_data["name"]] = perm
+        
         # Check if user exists
         result = await user_session.execute(
             select(User).where(User.email == "maiwand@inara.org")
@@ -230,25 +292,33 @@ async def update_maiwand_roles_background():
             )
             existing_roles = {r.name: r for r in result.scalars().all()}
             
+            # Role definitions with their permissions
+            roles_definitions = {
+                "admin": {"display": "Administrator", "permissions": ["admin:all", "hr:admin", "hr:read", "hr:write"]},
+                "ceo": {"display": "Chief Executive Officer", "permissions": ["admin:all", "hr:admin", "hr:read", "hr:write"]},
+                "super_admin": {"display": "Super Administrator", "permissions": ["admin:all", "hr:admin", "hr:read", "hr:write"]},
+                "hr_admin": {"display": "HR Administrator", "permissions": ["hr:admin", "hr:read", "hr:write"]},
+                "hr_manager": {"display": "HR Manager", "permissions": ["hr:read", "hr:write"]},
+                "finance_manager": {"display": "Finance Manager", "permissions": ["hr:read", "hr:write"]},
+                "employee": {"display": "Employee", "permissions": ["hr:read"]}
+            }
+            
             # Create missing roles
             for role_name in ["admin", "ceo", "super_admin", "hr_admin", "hr_manager", "finance_manager", "employee"]:
                 if role_name not in existing_roles:
-                    role_display = {
-                        "admin": "Administrator",
-                        "ceo": "Chief Executive Officer",
-                        "super_admin": "Super Administrator",
-                        "hr_admin": "HR Administrator",
-                        "hr_manager": "HR Manager",
-                        "finance_manager": "Finance Manager",
-                        "employee": "Employee"
-                    }
+                    role_def = roles_definitions[role_name]
                     role = Role(
                         id=uuid.uuid4(),
                         name=role_name,
-                        display_name=role_display[role_name],
-                        description=f"{role_display[role_name]} access",
+                        display_name=role_def["display"],
+                        description=f"{role_def['display']} access",
                         is_system=role_name != "employee"  # Only employee role is not a system role
                     )
+                    # Assign permissions to role
+                    for perm_name in role_def["permissions"]:
+                        if perm_name in created_permissions:
+                            role.permissions.append(created_permissions[perm_name])
+                    
                     user_session.add(role)
                     await user_session.flush()
                     existing_roles[role_name] = role
