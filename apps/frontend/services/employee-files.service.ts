@@ -4,13 +4,11 @@
  */
 
 import { api } from '@/lib/api-client';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+import { API_BASE_URL } from '@/lib/api-config';
 
 // Debug: Log the API URL being used
 if (typeof window !== 'undefined') {
   console.log('🔗 Employee Files Service - API URL:', API_BASE_URL);
-  console.log('🔗 Environment NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
 }
 
 export interface EmployeeDocument {

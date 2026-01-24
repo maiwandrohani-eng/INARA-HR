@@ -9,6 +9,7 @@ import { Plus, Plane, Clock, CheckCircle, MapPin, Download, XCircle, Eye, Trash2
 import { TravelRequestForm } from '@/components/forms/TravelRequestForm'
 import { travelService, type TravelRequest } from '@/services/travel.service'
 import { useAuthStore } from '@/state/auth.store'
+import { API_BASE_URL } from '@/lib/api-config'
 import {
   Dialog,
   DialogContent,

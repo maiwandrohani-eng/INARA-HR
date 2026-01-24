@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Plus, Shield, AlertTriangle, Clock, CheckCircle, Eye, Trash2 } from 'lucide-react'
 import { SafeguardingReportForm } from '@/components/forms/SafeguardingReportForm'
 import { useAuthStore } from '@/state/auth.store'
+import { API_BASE_URL } from '@/lib/api-config'
 
 interface SafeguardingCase {
   id: string
