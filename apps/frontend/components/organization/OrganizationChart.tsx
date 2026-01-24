@@ -79,7 +79,7 @@ export function OrganizationChart() {
     try {
       const token = localStorage.getItem('access_token')
       const [employeesRes, departmentsRes] = await Promise.all([
-        fetch('http://localhost:8000/api/v1/employees/organization-chart', {
+        fetch(`${API_BASE_URL}/employees/organization-chart`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -161,7 +161,7 @@ export function OrganizationChart() {
     try {
       const token = localStorage.getItem('access_token')
       const response = await fetch(
-        `http://localhost:8000/api/v1/employees/${editingEmployee.id}/hierarchy`,
+        `${API_BASE_URL}/employees/${editingEmployee.id}/hierarchy`,
         {
           method: 'PATCH',
           headers: {
@@ -189,7 +189,7 @@ export function OrganizationChart() {
   const handleExportPDF = async () => {
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch('http://localhost:8000/api/v1/employees/organization-chart/export', {
+      const response = await fetch(`${API_BASE_URL}/employees/organization-chart/export`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

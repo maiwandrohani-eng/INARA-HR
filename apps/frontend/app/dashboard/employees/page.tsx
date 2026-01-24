@@ -46,7 +46,7 @@ export default function EmployeesPage() {
 
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/v1/employees/${employee.id}`, {
+      const response = await fetch(`${API_BASE_URL}/employees/${employee.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -73,7 +73,7 @@ export default function EmployeesPage() {
 
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/v1/employees/${employee.id}/activate`, {
+      const response = await fetch(`${API_BASE_URL}/employees/${employee.id}/activate`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -100,7 +100,7 @@ export default function EmployeesPage() {
 
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/v1/employees/${employee.id}/deactivate`, {
+      const response = await fetch(`${API_BASE_URL}/employees/${employee.id}/deactivate`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

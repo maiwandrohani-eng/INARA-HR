@@ -68,7 +68,7 @@ export function PendingApprovalsWidget({ employeeId }: PendingApprovalsWidgetPro
       const token = localStorage.getItem('access_token');
       
       // Fetch approval stats
-      const statsResponse = await fetch('http://localhost:8000/api/v1/approvals/stats', {
+      const statsResponse = await fetch(`${API_BASE_URL}/approvals/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -81,7 +81,7 @@ export function PendingApprovalsWidget({ employeeId }: PendingApprovalsWidgetPro
       }
       
       // Fetch pending approvals list
-      const approvalsResponse = await fetch('http://localhost:8000/api/v1/approvals/pending', {
+      const approvalsResponse = await fetch(`${API_BASE_URL}/approvals/pending`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -105,7 +105,7 @@ export function PendingApprovalsWidget({ employeeId }: PendingApprovalsWidgetPro
   const handleApprove = async (approvalId: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/v1/approvals/requests/${approvalId}/approve`, {
+      const response = await fetch(`${API_BASE_URL}/approvals/requests/${approvalId}/approve`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -125,7 +125,7 @@ export function PendingApprovalsWidget({ employeeId }: PendingApprovalsWidgetPro
   const handleReject = async (approvalId: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/api/v1/approvals/requests/${approvalId}/reject`, {
+      const response = await fetch(`${API_BASE_URL}/approvals/requests/${approvalId}/reject`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
