@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { API_BASE_URL } from '@/lib/api-config'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -63,7 +64,7 @@ export function SalaryBandsDialog({ open, onOpenChange }: SalaryBandsDialogProps
     setLoading(true)
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch('http://localhost:8000/api/v1/compensation/salary-bands', {
+      const response = await fetch(`${API_BASE_URL}/compensation/salary-bands`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -107,8 +108,8 @@ export function SalaryBandsDialog({ open, onOpenChange }: SalaryBandsDialogProps
 
       const token = localStorage.getItem('access_token')
       const url = editingId 
-        ? `http://localhost:8000/api/v1/compensation/salary-bands/${editingId}`
-        : 'http://localhost:8000/api/v1/compensation/salary-bands'
+        ? `${API_BASE_URL}/compensation/salary-bands/${editingId}`
+        : `${API_BASE_URL}/compensation/salary-bands`
       
       const response = await fetch(url, {
         method: editingId ? 'PUT' : 'POST',
@@ -154,7 +155,7 @@ export function SalaryBandsDialog({ open, onOpenChange }: SalaryBandsDialogProps
 
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/v1/compensation/salary-bands/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/compensation/salary-bands/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

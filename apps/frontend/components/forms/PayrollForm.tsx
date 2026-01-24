@@ -94,7 +94,7 @@ export function PayrollForm({ open, onOpenChange }: PayrollFormProps) {
       }
 
       const token = localStorage.getItem('access_token')
-      const response = await fetch('http://localhost:8000/api/v1/payroll/', {
+      const response = await fetch(`${API_BASE_URL}/payroll/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -132,7 +132,7 @@ export function PayrollForm({ open, onOpenChange }: PayrollFormProps) {
     setGeneratingPayslip(true)
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/v1/payroll/${payrollId}/payslip`, {
+      const response = await fetch(`${API_BASE_URL}/payroll/${payrollId}/payslip`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

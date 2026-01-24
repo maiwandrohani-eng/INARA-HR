@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { API_BASE_URL } from '@/lib/api-config'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -81,7 +82,7 @@ export function SystemSettingsDialog({ open, onOpenChange }: SystemSettingsDialo
     
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch('http://localhost:8000/api/v1/admin/settings', {
+      const response = await fetch(`${API_BASE_URL}/admin/settings`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -144,7 +145,7 @@ export function SystemSettingsDialog({ open, onOpenChange }: SystemSettingsDialo
 
       console.log('Saving settings:', settingsData)
       
-      const response = await fetch('http://localhost:8000/api/v1/admin/settings', {
+      const response = await fetch(`${API_BASE_URL}/admin/settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

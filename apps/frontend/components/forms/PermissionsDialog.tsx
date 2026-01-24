@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { API_BASE_URL } from '@/lib/api-config'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -65,7 +66,7 @@ export function PermissionsDialog({ open, onOpenChange }: PermissionsDialogProps
     setLoading(true)
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch('http://localhost:8000/api/v1/auth/permissions', {
+      const response = await fetch(`${API_BASE_URL}/auth/permissions`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -85,7 +86,7 @@ export function PermissionsDialog({ open, onOpenChange }: PermissionsDialogProps
   const fetchRoles = async () => {
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch('http://localhost:8000/api/v1/auth/roles', {
+      const response = await fetch(`${API_BASE_URL}/auth/roles`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -119,7 +120,7 @@ export function PermissionsDialog({ open, onOpenChange }: PermissionsDialogProps
       }
 
       const token = localStorage.getItem('access_token')
-      const response = await fetch('http://localhost:8000/api/v1/auth/permissions', {
+      const response = await fetch(`${API_BASE_URL}/auth/permissions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

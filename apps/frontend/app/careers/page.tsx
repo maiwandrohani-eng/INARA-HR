@@ -58,7 +58,7 @@ export default function CareersPage() {
     try {
       setLoading(true)
       // Fetch only open job postings (public endpoint - no auth needed)
-      const response = await fetch('http://localhost:8000/api/v1/recruitment/?status=open')
+      const response = await fetch(`${API_BASE_URL}/recruitment/?status=open`)
       if (response.ok) {
         const data = await response.json()
         setJobPostings(Array.isArray(data) ? data : [])
@@ -93,7 +93,7 @@ export default function CareersPage() {
         source: 'website',
       }
 
-      const response = await fetch('http://localhost:8000/api/v1/recruitment/applications', {
+      const response = await fetch(`${API_BASE_URL}/recruitment/applications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

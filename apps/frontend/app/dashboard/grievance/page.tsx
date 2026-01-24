@@ -46,7 +46,7 @@ export default function GrievancePage() {
         return
       }
       
-      const response = await fetch('http://localhost:8000/api/v1/grievances/', {
+      const response = await fetch(`${API_BASE_URL}/grievances/`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -95,7 +95,7 @@ export default function GrievancePage() {
         return
       }
 
-      const response = await fetch(`http://localhost:8000/api/v1/grievances/${selectedGrievance.id}`, {
+      const response = await fetch(`${API_BASE_URL}/grievances/${selectedGrievance.id}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

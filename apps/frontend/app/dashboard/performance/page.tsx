@@ -84,7 +84,7 @@ export default function PerformancePage() {
 
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/v1/performance/reviews/360/${reviewId}`, {
+      const response = await fetch(`${API_BASE_URL}/performance/reviews/360/${reviewId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

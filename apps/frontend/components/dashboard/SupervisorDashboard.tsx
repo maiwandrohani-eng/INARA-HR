@@ -82,7 +82,7 @@ export function SupervisorDashboard() {
 
   const fetchSupervisorDashboardData = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/dashboard/supervisor', {
+      const response = await fetch(`${API_BASE_URL}/dashboard/supervisor`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
         },
@@ -101,7 +101,7 @@ export function SupervisorDashboard() {
 
   const handleApproveLeave = async (requestId: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/leave/requests/${requestId}/approve`, {
+      const response = await fetch(`${API_BASE_URL}/leave/requests/${requestId}/approve`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
@@ -121,7 +121,7 @@ export function SupervisorDashboard() {
 
   const handleRejectLeave = async (requestId: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/leave/requests/${requestId}/reject`, {
+      const response = await fetch(`${API_BASE_URL}/leave/requests/${requestId}/reject`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
@@ -141,7 +141,7 @@ export function SupervisorDashboard() {
 
   const handleApproveTravel = async (requestId: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/travel/requests/${requestId}/approve`, {
+      const response = await fetch(`${API_BASE_URL}/travel/requests/${requestId}/approve`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`,

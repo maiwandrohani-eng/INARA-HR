@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { API_BASE_URL } from '@/lib/api-config'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -49,7 +50,7 @@ export function GenerateReportForm({ open, onOpenChange }: GenerateReportFormPro
       })
 
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/v1/reports/generate?${reportParams}`, {
+      const response = await fetch(`${API_BASE_URL}/reports/generate?${reportParams}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -178,7 +178,7 @@ export function PerformanceReviewForm({
 
       const token = localStorage.getItem('access_token')
       const response = await fetch(
-        'http://localhost:8000/api/v1/performance/reviews',
+        `${API_BASE_URL}/performance/reviews`,
         {
           method: 'POST',
           headers: {

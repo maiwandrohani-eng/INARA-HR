@@ -96,7 +96,7 @@ export default function PersonalFileTab({
           employeeFilesService.getEmployeeContracts(employeeId, true),
           employeeFilesService.getPendingExtensions(employeeId),
           employeeFilesService.getEmployeeResignations(employeeId),
-          fetch(`http://localhost:8000/api/v1/employees/${employeeId}`, {
+          fetch(`${API_BASE_URL}/employees/${employeeId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
           }).then(r => r.json()).catch(() => null),
         ]);

@@ -55,7 +55,7 @@ export default function SafeguardingPage() {
         return
       }
       
-      const response = await fetch('http://localhost:8000/api/v1/safeguarding/cases', {
+      const response = await fetch(`${API_BASE_URL}/safeguarding/cases`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -113,7 +113,7 @@ export default function SafeguardingPage() {
         return
       }
 
-      const response = await fetch(`http://localhost:8000/api/v1/safeguarding/cases/${selectedCase.id}`, {
+      const response = await fetch(`${API_BASE_URL}/safeguarding/cases/${selectedCase.id}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -142,7 +142,7 @@ export default function SafeguardingPage() {
 
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/v1/safeguarding/cases/${caseId}`, {
+      const response = await fetch(`${API_BASE_URL}/safeguarding/cases/${caseId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
