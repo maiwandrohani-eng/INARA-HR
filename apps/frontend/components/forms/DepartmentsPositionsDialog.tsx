@@ -20,6 +20,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Plus, Building2, Briefcase, Trash2, Edit2, X } from 'lucide-react'
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+
 interface Department {
   id: string
   name: string
@@ -127,8 +129,8 @@ export function DepartmentsPositionsDialog({ open, onOpenChange }: DepartmentsPo
       }
 
       const url = editingDept 
-        ? `http://localhost:8000/api/v1/employees/departments/${editingDept.id}`
-        : 'http://localhost:8000/api/v1/employees/departments'
+        ? `${API_URL}/employees/departments/${editingDept.id}`
+        : `${API_URL}/employees/departments`
       
       const method = editingDept ? 'PUT' : 'POST'
       
@@ -203,7 +205,7 @@ export function DepartmentsPositionsDialog({ open, onOpenChange }: DepartmentsPo
     try {
       const token = localStorage.getItem('access_token') || localStorage.getItem('token')
       
-      const response = await fetch(`http://localhost:8000/api/v1/employees/departments/${deptId}`, {
+      const response = await fetch(`${API_URL}/employees/departments/${deptId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -248,8 +250,8 @@ export function DepartmentsPositionsDialog({ open, onOpenChange }: DepartmentsPo
       }
 
       const url = editingPos
-        ? `http://localhost:8000/api/v1/employees/positions/${editingPos.id}`
-        : 'http://localhost:8000/api/v1/employees/positions'
+        ? `${API_URL}/employees/positions/${editingPos.id}`
+        : `${API_URL}/employees/positions`
       
       const method = editingPos ? 'PUT' : 'POST'
       
@@ -328,7 +330,7 @@ export function DepartmentsPositionsDialog({ open, onOpenChange }: DepartmentsPo
     try {
       const token = localStorage.getItem('access_token') || localStorage.getItem('token')
       
-      const response = await fetch(`http://localhost:8000/api/v1/employees/positions/${posId}`, {
+      const response = await fetch(`${API_URL}/employees/positions/${posId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

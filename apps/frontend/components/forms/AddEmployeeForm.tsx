@@ -122,7 +122,7 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
   const fetchDepartments = async () => {
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch('http://localhost:8000/api/v1/employees/departments', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/employees/departments`, {
         headers: { 'Authorization': `Bearer ${token}` },
       })
       if (response.ok) {
@@ -137,7 +137,7 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
   const fetchPositions = async () => {
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch('http://localhost:8000/api/v1/employees/positions', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/employees/positions`, {
         headers: { 'Authorization': `Bearer ${token}` },
       })
       if (response.ok) {

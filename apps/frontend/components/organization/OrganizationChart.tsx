@@ -84,7 +84,7 @@ export function OrganizationChart() {
             'Authorization': `Bearer ${token}`,
           },
         }),
-        fetch('http://localhost:8000/api/v1/employees/departments', {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/employees/departments`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
