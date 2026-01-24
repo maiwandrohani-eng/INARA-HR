@@ -260,7 +260,6 @@ class AuthService:
             "is_active": user.is_active,
             "is_verified": user.is_verified,
             "is_superuser": user.is_superuser,
-            "employee_id": user.employee_id,
             "last_login": user.last_login,
             "created_at": user.created_at,
             "roles": [{"id": role.id, "name": role.name, "display_name": role.display_name} for role in user.roles],
