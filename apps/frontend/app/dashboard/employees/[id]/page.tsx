@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ArrowLeft, Edit, FileText } from 'lucide-react'
 import { Employee } from '@/hooks/useEmployees'
 import PersonalFileTab from '@/components/dashboard/PersonalFileTab'
+import { API_BASE_URL } from '@/lib/api-config'
 
 interface CurrentUser {
   id: string
@@ -25,8 +26,6 @@ export default function ViewEmployeePage() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
-
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
   // Extract permission names from the user's roles
   const userPermissions = currentUser?.roles?.flatMap((role: any) => 
@@ -47,7 +46,6 @@ export default function ViewEmployeePage() {
   useEffect(() => {
     const checkSupervisorStatus = async () => {
       try {
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
         const token = localStorage.getItem('access_token');
         const response = await fetch(`${API_BASE_URL}/dashboard/is-supervisor-of/${params.id}`, {
           headers: {
