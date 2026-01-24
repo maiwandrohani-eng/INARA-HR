@@ -13,9 +13,16 @@ import re
 import uuid
 
 from core.database import get_db
-from core.dependencies import get_current_user
+from core.dependencies import get_current_user, require_admin
 from core.pdf_generator import create_user_manual_pdf
 from modules.auth.models import User, Role
+from modules.admin.models import CountryConfig
+from modules.admin.schemas import (
+    CountryConfigCreate,
+    CountryConfigUpdate,
+    CountryConfigResponse
+)
+from modules.admin.repositories import CountryConfigRepository
 
 router = APIRouter(tags=["admin"])
 
@@ -271,3 +278,139 @@ async def fix_my_roles(
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Error fixing roles: {str(e)}")
+
+
+# ==================== Country Configuration Routes ====================
+
+@router.get("/countries", response_model=list[CountryConfigResponse])
+async def get_all_countries(
+    current_user: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all country configurations
+    Requires admin permissions
+    """
+    try:
+        repo = CountryConfigRepository(db)
+        configs = await repo.get_all()
+        return configs
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching countries: {str(e)}")
+
+
+@router.get("/countries/{config_id}", response_model=CountryConfigResponse)
+async def get_country(
+    config_id: uuid.UUID,
+    current_user: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get a specific country configuration by ID
+    Requires admin permissions
+    """
+    try:
+        repo = CountryConfigRepository(db)
+        config = await repo.get_by_id(config_id)
+        
+        if not config:
+            raise HTTPException(status_code=404, detail="Country configuration not found")
+        
+        return config
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching country: {str(e)}")
+
+
+@router.post("/countries", response_model=CountryConfigResponse, status_code=201)
+async def create_country(
+    data: CountryConfigCreate,
+    current_user: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Create a new country configuration
+    Requires admin permissions
+    """
+    try:
+        repo = CountryConfigRepository(db)
+        
+        # Check if country code already exists
+        existing = await repo.get_by_code(data.country_code)
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Country configuration for {data.country_code} already exists"
+            )
+        
+        # Create the config
+        config = await repo.create(data.model_dump())
+        await db.commit()
+        await db.refresh(config)
+        
+        return config
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating country: {str(e)}")
+
+
+@router.put("/countries/{config_id}", response_model=CountryConfigResponse)
+async def update_country(
+    config_id: uuid.UUID,
+    data: CountryConfigUpdate,
+    current_user: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update a country configuration
+    Requires admin permissions
+    """
+    try:
+        repo = CountryConfigRepository(db)
+        config = await repo.get_by_id(config_id)
+        
+        if not config:
+            raise HTTPException(status_code=404, detail="Country configuration not found")
+        
+        # Update the config
+        updated_config = await repo.update(config, data.model_dump(exclude_unset=True))
+        await db.commit()
+        await db.refresh(updated_config)
+        
+        return updated_config
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating country: {str(e)}")
+
+
+@router.delete("/countries/{config_id}", status_code=204)
+async def delete_country(
+    config_id: uuid.UUID,
+    current_user: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete (soft delete) a country configuration
+    Requires admin permissions
+    """
+    try:
+        repo = CountryConfigRepository(db)
+        config = await repo.get_by_id(config_id)
+        
+        if not config:
+            raise HTTPException(status_code=404, detail="Country configuration not found")
+        
+        await repo.delete(config)
+        await db.commit()
+        
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error deleting country: {str(e)}")
