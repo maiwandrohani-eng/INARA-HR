@@ -12,6 +12,7 @@ import logging
 
 from modules.auth.repositories import UserRepository, RoleRepository, LoginAttemptRepository
 from modules.auth.schemas import UserCreate, LoginRequest
+from modules.auth.models import User
 from core.security import verify_password, create_access_token, create_refresh_token, hash_password, decode_token
 from core.exceptions import InvalidCredentialsException, AlreadyExistsException, NotFoundException, UnauthorizedException, BadRequestException
 from core.config import settings
@@ -245,7 +246,13 @@ class AuthService:
                     )
         
         await self.db.commit()
-        await self.db.refresh(user)
+        
+        # Refresh user with roles eagerly loaded to avoid lazy loading issues
+        from sqlalchemy.orm import selectinload
+        result = await self.db.execute(
+            select(User).options(selectinload(User.roles)).where(User.id == user.id)
+        )
+        user = result.scalar_one()
         
         logger.info(f"New user registered: {user.email}")
         
