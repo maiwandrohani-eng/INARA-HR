@@ -258,6 +258,91 @@ async def list_users(
     return users
 
 
+@router.get("/users/export")
+async def export_users_with_credentials(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin)
+):
+    """
+    Export all users with their credentials (passwords will be reset/generated)
+    Returns CSV file with email, password, name, role, etc.
+    """
+    from core.security import generate_secure_password
+    from modules.auth.repositories import UserRepository
+    from modules.auth.models import User
+    
+    user_repo = UserRepository(db)
+    users = await user_repo.get_all(skip=0, limit=10000)  # Get all users
+    
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        "Email",
+        "Password",
+        "First Name",
+        "Last Name",
+        "Phone",
+        "Country Code",
+        "Role",
+        "Is Active",
+        "Is Verified",
+        "Employee ID",
+        "Employee Number",
+    ])
+    
+    # Reset passwords and write user data
+    for user in users:
+        # Generate new password for export
+        new_password = generate_secure_password(12)
+        
+        # Update user password
+        await user_repo.update(user.id, {"password": new_password})
+        await db.commit()
+        
+        # Get role names
+        role_names = [role.display_name for role in user.roles] if user.roles else []
+        role_str = ", ".join(role_names) if role_names else "No Role"
+        
+        # Get employee info if linked
+        employee_number = None
+        if user.employee_id:
+            from modules.employees.models import Employee
+            emp_result = await db.execute(
+                select(Employee).where(Employee.id == user.employee_id)
+            )
+            employee = emp_result.scalar_one_or_none()
+            if employee:
+                employee_number = employee.employee_number
+        
+        writer.writerow([
+            user.email,
+            new_password,
+            user.first_name,
+            user.last_name,
+            user.phone or "",
+            user.country_code,
+            role_str,
+            "Yes" if user.is_active else "No",
+            "Yes" if user.is_verified else "No",
+            str(user.employee_id) if user.employee_id else "",
+            employee_number or "",
+        ])
+    
+    output.seek(0)
+    
+    # Return CSV file
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=users_credentials_export.csv"
+        }
+    )
+
+
 @router.get("/users/{user_id}", response_model=UserResponse)
 async def get_user(
     user_id: str,
@@ -347,91 +432,6 @@ async def list_employees_without_users(
         }
         for emp in employees
     ]
-
-
-@router.get("/users/export")
-async def export_users_with_credentials(
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_admin)
-):
-    """
-    Export all users with their credentials (passwords will be reset/generated)
-    Returns CSV file with email, password, name, role, etc.
-    """
-    from core.security import generate_secure_password
-    from modules.auth.repositories import UserRepository
-    from modules.auth.models import User
-    
-    user_repo = UserRepository(db)
-    users = await user_repo.get_all(skip=0, limit=10000)  # Get all users
-    
-    # Create CSV in memory
-    output = io.StringIO()
-    writer = csv.writer(output)
-    
-    # Write header
-    writer.writerow([
-        "Email",
-        "Password",
-        "First Name",
-        "Last Name",
-        "Phone",
-        "Country Code",
-        "Role",
-        "Is Active",
-        "Is Verified",
-        "Employee ID",
-        "Employee Number",
-    ])
-    
-    # Reset passwords and write user data
-    for user in users:
-        # Generate new password for export
-        new_password = generate_secure_password(12)
-        
-        # Update user password
-        await user_repo.update(user.id, {"password": new_password})
-        await db.commit()
-        
-        # Get role names
-        role_names = [role.display_name for role in user.roles] if user.roles else []
-        role_str = ", ".join(role_names) if role_names else "No Role"
-        
-        # Get employee info if linked
-        employee_number = None
-        if user.employee_id:
-            from modules.employees.models import Employee
-            emp_result = await db.execute(
-                select(Employee).where(Employee.id == user.employee_id)
-            )
-            employee = emp_result.scalar_one_or_none()
-            if employee:
-                employee_number = employee.employee_number
-        
-        writer.writerow([
-            user.email,
-            new_password,
-            user.first_name,
-            user.last_name,
-            user.phone or "",
-            user.country_code,
-            role_str,
-            "Yes" if user.is_active else "No",
-            "Yes" if user.is_verified else "No",
-            str(user.employee_id) if user.employee_id else "",
-            employee_number or "",
-        ])
-    
-    output.seek(0)
-    
-    # Return CSV file
-    return Response(
-        content=output.getvalue(),
-        media_type="text/csv",
-        headers={
-            "Content-Disposition": "attachment; filename=users_credentials_export.csv"
-        }
-    )
 
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
