@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { API_BASE_URL } from '@/lib/api-config'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -105,9 +106,8 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
 
   const fetchEmployees = async () => {
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`${baseUrl}/employees/`, {
+      const response = await fetch(`${API_BASE_URL}/employees/`, {
         headers: { 'Authorization': `Bearer ${token}` },
       })
       if (response.ok) {
@@ -122,7 +122,7 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
   const fetchDepartments = async () => {
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/employees/departments`, {
+      const response = await fetch(`${API_BASE_URL}/employees/departments`, {
         headers: { 'Authorization': `Bearer ${token}` },
       })
       if (response.ok) {
@@ -137,7 +137,7 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
   const fetchPositions = async () => {
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/employees/positions`, {
+      const response = await fetch(`${API_BASE_URL}/employees/positions`, {
         headers: { 'Authorization': `Bearer ${token}` },
       })
       if (response.ok) {
@@ -152,7 +152,7 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
   const fetchCountries = async () => {
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/admin/countries`, {
+      const response = await fetch(`${API_BASE_URL}/admin/countries`, {
         headers: { 'Authorization': `Bearer ${token}` },
       })
       if (response.ok) {
@@ -209,7 +209,7 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
 
       const token = localStorage.getItem('access_token')
       
-      const response = await fetch('http://localhost:8000/api/v1/employees/', {
+      const response = await fetch(`${API_BASE_URL}/employees/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

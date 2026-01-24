@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { API_BASE_URL } from '@/lib/api-config'
 
 export interface Employee {
   id: string
@@ -36,7 +37,7 @@ export function useEmployees() {
         return
       }
       
-      const response = await fetch('http://localhost:8000/api/v1/employees/', {
+      const response = await fetch(`${API_BASE_URL}/employees/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

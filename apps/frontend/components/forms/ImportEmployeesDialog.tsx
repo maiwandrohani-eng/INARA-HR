@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { API_BASE_URL } from '@/lib/api-config'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Upload, FileSpreadsheet, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
@@ -217,7 +218,7 @@ export function ImportEmployeesDialog({ open, onOpenChange, onSuccess }: ImportE
       for (let i = 0; i < employees.length; i++) {
         const employee = employees[i]
         try {
-          const response = await fetch('http://localhost:8000/api/v1/employees/', {
+          const response = await fetch(`${API_BASE_URL}/employees/`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
