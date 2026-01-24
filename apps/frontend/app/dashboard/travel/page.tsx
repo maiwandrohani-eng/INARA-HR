@@ -67,7 +67,7 @@ export default function TravelPage() {
 
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/v1/travel/requests/${requestId}`, {
+      const response = await fetch(`${API_BASE_URL}/travel/requests/${requestId}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -93,7 +93,7 @@ export default function TravelPage() {
 
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/v1/travel/requests/${requestId}`, {
+      const response = await fetch(`${API_BASE_URL}/travel/requests/${requestId}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -124,7 +124,7 @@ export default function TravelPage() {
 
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/v1/travel/requests/${requestId}`, {
+      const response = await fetch(`${API_BASE_URL}/travel/requests/${requestId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

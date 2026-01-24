@@ -66,7 +66,7 @@ export default function TimesheetsPage() {
 
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/v1/timesheets/${timesheetId}`, {
+      const response = await fetch(`${API_BASE_URL}/timesheets/${timesheetId}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -92,7 +92,7 @@ export default function TimesheetsPage() {
 
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/v1/timesheets/${timesheetId}`, {
+      const response = await fetch(`${API_BASE_URL}/timesheets/${timesheetId}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -123,7 +123,7 @@ export default function TimesheetsPage() {
 
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/v1/timesheets/${timesheetId}`, {
+      const response = await fetch(`${API_BASE_URL}/timesheets/${timesheetId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

@@ -62,8 +62,9 @@ export default function PersonalFileDebug({ employeeId }: { employeeId: string }
 
     // Test basic health endpoint (no auth)
     try {
-      console.log('Testing health endpoint:', 'http://localhost:8000/health');
-      const response = await fetch('http://localhost:8000/health', {
+      const healthUrl = `${API_BASE_URL.replace('/api/v1', '')}/health`;
+      console.log('Testing health endpoint:', healthUrl);
+      const response = await fetch(healthUrl, {
         method: 'GET',
         mode: 'cors',
       });

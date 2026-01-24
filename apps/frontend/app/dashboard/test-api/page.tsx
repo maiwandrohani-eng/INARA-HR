@@ -26,7 +26,8 @@ export default function TestAPIPage() {
       // Test 1: Health check
       log('\n1️⃣ Testing health endpoint...')
       try {
-        const resp = await fetch('http://localhost:8000/health')
+        const healthUrl = API_URL.replace('/api/v1', '') + '/health';
+        const resp = await fetch(healthUrl)
         log(`   Status: ${resp.status}`)
         const data = await resp.json()
         log(`   Response: ${JSON.stringify(data)}`)
