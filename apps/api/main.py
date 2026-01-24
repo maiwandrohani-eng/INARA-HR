@@ -152,11 +152,15 @@ async def create_initial_user_background():
         if not existing_user:
             logger.info("Creating initial user: maiwand@inara.org...")
             
-            # Get or create required roles (admin, ceo, super_admin)
+            # Get or create ALL required roles
             roles_to_create = [
                 {"name": "super_admin", "display_name": "Super Administrator", "description": "Full system access", "is_system": True},
                 {"name": "admin", "display_name": "Administrator", "description": "System Administrator with full access", "is_system": True},
-                {"name": "ceo", "display_name": "Chief Executive Officer", "description": "CEO access - full organizational access", "is_system": True}
+                {"name": "ceo", "display_name": "Chief Executive Officer", "description": "CEO access - full organizational access", "is_system": True},
+                {"name": "hr_admin", "display_name": "HR Administrator", "description": "HR Administrator - full HR access", "is_system": True},
+                {"name": "hr_manager", "display_name": "HR Manager", "description": "HR Manager - read/write access", "is_system": True},
+                {"name": "finance_manager", "display_name": "Finance Manager", "description": "Finance Manager - payroll and finance access", "is_system": True},
+                {"name": "employee", "display_name": "Employee", "description": "Regular Employee - basic access", "is_system": False}
             ]
             
             created_roles = {}
@@ -222,24 +226,28 @@ async def update_maiwand_roles_background():
         if existing_user:
             # User exists, ensure they have admin and ceo roles
             result = await user_session.execute(
-                select(Role).where(Role.name.in_(["admin", "ceo", "super_admin"]))
+                select(Role).where(Role.name.in_(["admin", "ceo", "super_admin", "hr_admin", "hr_manager", "finance_manager", "employee"]))
             )
             existing_roles = {r.name: r for r in result.scalars().all()}
             
             # Create missing roles
-            for role_name in ["admin", "ceo", "super_admin"]:
+            for role_name in ["admin", "ceo", "super_admin", "hr_admin", "hr_manager", "finance_manager", "employee"]:
                 if role_name not in existing_roles:
                     role_display = {
                         "admin": "Administrator",
                         "ceo": "Chief Executive Officer",
-                        "super_admin": "Super Administrator"
+                        "super_admin": "Super Administrator",
+                        "hr_admin": "HR Administrator",
+                        "hr_manager": "HR Manager",
+                        "finance_manager": "Finance Manager",
+                        "employee": "Employee"
                     }
                     role = Role(
                         id=uuid.uuid4(),
                         name=role_name,
                         display_name=role_display[role_name],
                         description=f"{role_display[role_name]} access",
-                        is_system=True
+                        is_system=role_name != "employee"  # Only employee role is not a system role
                     )
                     user_session.add(role)
                     await user_session.flush()
