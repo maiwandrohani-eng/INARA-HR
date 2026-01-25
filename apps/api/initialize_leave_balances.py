@@ -27,6 +27,18 @@ async def initialize_balances():
         print("❌ DATABASE_URL environment variable not set")
         sys.exit(1)
     
+    # Convert postgres:// to postgresql+asyncpg:// if needed
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql+asyncpg://', 1)
+    elif database_url.startswith('postgresql://'):
+        database_url = database_url.replace('postgresql://', 'postgresql+asyncpg://', 1)
+    
+    # Remove sslmode parameter as asyncpg doesn't support it
+    if '?sslmode=' in database_url:
+        database_url = database_url.split('?sslmode=')[0]
+    elif '&sslmode=' in database_url:
+        database_url = database_url.replace('&sslmode=require', '').replace('&sslmode=disable', '')
+    
     print("🔗 Connecting to database...")
     engine = create_async_engine(database_url, echo=False)
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

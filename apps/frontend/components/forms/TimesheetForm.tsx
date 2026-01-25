@@ -352,8 +352,8 @@ export function TimesheetForm({ open, onOpenChange, onSubmitSuccess }: Timesheet
               <Label htmlFor="position">Employee Position</Label>
               <Input
                 id="position"
-                value={selectedEmployee?.work_location || dutyStation}
-                onChange={(e) => setDutyStation(e.target.value)}
+                value={employeePosition}
+                onChange={(e) => setEmployeePosition(e.target.value)}
                 placeholder="Position/Role"
               />
             </div>
