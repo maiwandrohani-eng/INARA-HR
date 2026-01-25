@@ -102,6 +102,9 @@ class DashboardService:
             # Get grievance stats
             grievance_stats = await self._get_employee_grievances(employee_id)
             
+            # Get leave balance
+            leave_balance = await self._get_employee_leave_balance(employee_id)
+            
             return {
                 "employee": {
                     "id": str(employee_id),
@@ -110,11 +113,7 @@ class DashboardService:
                     "department": employee_department,
                     "employee_number": employee_number
                 },
-                "leaveBalance": {
-                    "annual": 15,
-                    "sick": 10,
-                    "total": 25
-                },
+                "leaveBalance": leave_balance,
                 "recentLeaveRequests": recent_leave_requests,
                 "recentTravelRequests": recent_travel_requests,
                 "recentPayslips": recent_payslips,
@@ -281,6 +280,54 @@ class DashboardService:
                 "total": 0,
                 "resolved": 0,
                 "pending": 0
+            }
+    
+    async def _get_employee_leave_balance(self, employee_id: uuid.UUID) -> Dict[str, Any]:
+        """Get leave balance for an employee"""
+        try:
+            from modules.leave.models import LeaveBalance
+            from decimal import Decimal
+            
+            # Get current year
+            current_year = str(datetime.now().year)
+            
+            # Get all leave balances for current year
+            result = await self.db.execute(
+                select(LeaveBalance)
+                .where(
+                    and_(
+                        LeaveBalance.employee_id == employee_id,
+                        LeaveBalance.year == current_year,
+                        LeaveBalance.is_deleted == False
+                    )
+                )
+            )
+            balances = result.scalars().all()
+            
+            # Calculate totals by leave type
+            annual_balance = Decimal("0")
+            sick_balance = Decimal("0")
+            
+            for balance in balances:
+                if balance.leave_type.lower() in ['annual', 'annual_leave']:
+                    annual_balance += balance.available_days
+                elif balance.leave_type.lower() in ['sick', 'sick_leave']:
+                    sick_balance += balance.available_days
+            
+            total_balance = annual_balance + sick_balance
+            
+            return {
+                "annual": float(annual_balance),
+                "sick": float(sick_balance),
+                "total": float(total_balance)
+            }
+        except Exception as e:
+            await self.db.rollback()
+            print(f"Error fetching leave balance: {e}")
+            return {
+                "annual": 0,
+                "sick": 0,
+                "total": 0
             }
     
     async def get_supervisor_dashboard(self, user_id: uuid.UUID) -> Dict[str, Any]:
