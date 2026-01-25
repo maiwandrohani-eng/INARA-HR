@@ -13,9 +13,13 @@ export interface Employee {
   position_id?: string
   manager_id?: string
   work_location?: string
+  office_location?: string
   status: string
   employment_type: string
   hire_date?: string
+  job_title?: string
+  position?: string | { id: string; title: string; code?: string }
+  department?: string | { id: string; name: string }
 }
 
 export function useEmployees() {

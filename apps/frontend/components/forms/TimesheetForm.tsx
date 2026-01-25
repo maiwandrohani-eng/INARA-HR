@@ -56,7 +56,19 @@ export function TimesheetForm({ open, onOpenChange, onSubmitSuccess }: Timesheet
   useEffect(() => {
     if (selectedEmployee) {
       // Auto-populate employee position/job title
-      setEmployeePosition(selectedEmployee.job_title || selectedEmployee.position || '')
+      // Handle both string and object position fields
+      let positionTitle = ''
+      if (selectedEmployee.job_title) {
+        positionTitle = selectedEmployee.job_title
+      } else if (selectedEmployee.position) {
+        // Check if position is an object or string
+        if (typeof selectedEmployee.position === 'object' && selectedEmployee.position !== null) {
+          positionTitle = selectedEmployee.position.title || ''
+        } else {
+          positionTitle = selectedEmployee.position
+        }
+      }
+      setEmployeePosition(positionTitle)
       
       // Auto-populate duty station from work location or office location
       setDutyStation(selectedEmployee.work_location || selectedEmployee.office_location || '')
