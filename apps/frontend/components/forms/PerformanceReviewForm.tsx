@@ -327,7 +327,15 @@ export function PerformanceReviewForm({
                 <Label htmlFor="position">Position:</Label>
                 <Input
                   id="position"
-                  value={selectedEmployee?.work_location || position}
+                  value={
+                    selectedEmployee
+                      ? selectedEmployee.job_title ||
+                        (typeof selectedEmployee.position === 'object' && selectedEmployee.position !== null
+                          ? selectedEmployee.position.title
+                          : selectedEmployee.position) ||
+                        'N/A'
+                      : position
+                  }
                   onChange={(e) => setPosition(e.target.value)}
                   placeholder="Position"
                 />
