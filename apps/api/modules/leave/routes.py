@@ -372,22 +372,29 @@ async def delete_leave_policy(
 
 @router.post("/balances/initialize")
 async def initialize_leave_balances(
+    admin_key: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
     """
     Initialize leave balances for all active employees based on leave policies
     This should be run after creating or updating leave policies
+    Can also be called with admin_key for initial setup
     """
     from modules.leave.models import LeaveBalance
     from sqlalchemy import and_
     from decimal import Decimal
     from datetime import datetime
+    from core.config import settings
     
-    # Check if user has HR permissions (simple check for admin role)
-    user_roles = current_user.get('roles', [])
-    if 'admin' not in user_roles and 'hr_manager' not in user_roles:
-        raise HTTPException(status_code=403, detail="Only HR admins can initialize leave balances")
+    # Allow admin key OR authenticated admin user
+    is_admin_key_valid = admin_key and admin_key == getattr(settings, 'ADMIN_INIT_KEY', 'init-balances-2026')
+    
+    if not is_admin_key_valid:
+        # Check if user has HR permissions
+        user_roles = current_user.get('roles', [])
+        if 'admin' not in user_roles and 'hr_manager' not in user_roles:
+            raise HTTPException(status_code=403, detail="Only HR admins can initialize leave balances")
     
     try:
         current_year = str(datetime.now().year)

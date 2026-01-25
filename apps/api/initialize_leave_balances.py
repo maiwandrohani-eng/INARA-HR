@@ -4,11 +4,15 @@ Run this after creating or updating leave policies
 """
 import asyncio
 import os
+import sys
 from datetime import datetime
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select, and_
 from decimal import Decimal
+
+# Ensure we're in the correct directory
+sys.path.insert(0, os.path.dirname(__file__))
 
 from modules.employees.models import Employee
 from modules.leave.models import LeavePolicy, LeaveBalance
@@ -21,7 +25,7 @@ async def initialize_balances():
     database_url = os.environ.get('DATABASE_URL')
     if not database_url:
         print("❌ DATABASE_URL environment variable not set")
-        return
+        sys.exit(1)
     
     print("🔗 Connecting to database...")
     engine = create_async_engine(database_url, echo=False)
