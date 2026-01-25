@@ -215,7 +215,17 @@ export function PayrollForm({ open, onOpenChange }: PayrollFormProps) {
                 <>
                   <div className="space-y-2">
                     <Label>Position</Label>
-                    <Input value={selectedEmployee.position_id || 'N/A'} readOnly className="bg-gray-50" />
+                    <Input 
+                      value={
+                        selectedEmployee.job_title || 
+                        (typeof selectedEmployee.position === 'object' && selectedEmployee.position !== null
+                          ? selectedEmployee.position.title 
+                          : selectedEmployee.position) || 
+                        'N/A'
+                      } 
+                      readOnly 
+                      className="bg-gray-50" 
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Location</Label>
