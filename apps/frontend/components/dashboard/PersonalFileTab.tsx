@@ -859,14 +859,19 @@ export default function PersonalFileTab({
                         <select name="category" required className="w-full p-2 border rounded">
                           <option value="">Select category...</option>
                           <option value="contract">Contract</option>
+                          <option value="contract_extension">Contract Extension</option>
+                          <option value="educational">Educational</option>
+                          <option value="reference_check">Reference Check</option>
+                          <option value="interview_record">Interview Record</option>
+                          <option value="background_check">Background Check</option>
                           <option value="id_document">ID Document</option>
-                          <option value="certification">Certification</option>
-                          <option value="visa">Visa</option>
-                          <option value="education">Education</option>
-                          <option value="training">Training</option>
-                          <option value="performance">Performance</option>
+                          <option value="bank_details">Bank Details</option>
+                          <option value="emergency_contact">Emergency Contact</option>
+                          <option value="resignation">Resignation</option>
+                          <option value="termination">Termination</option>
+                          <option value="performance_review">Performance Review</option>
                           <option value="disciplinary">Disciplinary</option>
-                          <option value="medical">Medical</option>
+                          <option value="training_certificate">Training Certificate</option>
                           <option value="other">Other</option>
                         </select>
                       </div>
