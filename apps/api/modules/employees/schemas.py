@@ -39,10 +39,23 @@ class EmployeeCreate(EmployeeBase):
     national_id: Optional[str] = None
     passport_number: Optional[str] = None
     
-    # Emergency contact
+    # Emergency contact 1
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None
     emergency_contact_relationship: Optional[str] = None
+    
+    # Emergency contact 2
+    emergency_contact_2_name: Optional[str] = None
+    emergency_contact_2_phone: Optional[str] = None
+    emergency_contact_2_relationship: Optional[str] = None
+    emergency_contact_2_note: Optional[str] = None
+    
+    # Medical & Health
+    blood_type: Optional[str] = None
+    medical_conditions: Optional[str] = None
+    
+    # Work Type
+    work_type: Optional[str] = None  # on_site, remote, hybrid
     
     # Contract details (optional - will create contract if provided)
     salary: Optional[Decimal] = None
@@ -142,11 +155,23 @@ class EmployeeResponse(EmployeeBase):
     employment_type: str
     hire_date: date
     work_location: Optional[str] = None
+    work_type: Optional[str] = None
     manager_id: Optional[uuid.UUID] = None
     department_id: Optional[uuid.UUID] = None
     position_id: Optional[uuid.UUID] = None
     department: Optional[DepartmentResponse] = None
     position: Optional[PositionResponse] = None
+    # Emergency contacts
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    emergency_contact_relationship: Optional[str] = None
+    emergency_contact_2_name: Optional[str] = None
+    emergency_contact_2_phone: Optional[str] = None
+    emergency_contact_2_relationship: Optional[str] = None
+    emergency_contact_2_note: Optional[str] = None
+    # Medical & Health
+    blood_type: Optional[str] = None
+    medical_conditions: Optional[str] = None
     created_at: datetime
     
     class Config:

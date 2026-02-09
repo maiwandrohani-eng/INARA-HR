@@ -31,6 +31,13 @@ class EmploymentType(str, enum.Enum):
     VOLUNTEER = "volunteer"
 
 
+class WorkType(str, enum.Enum):
+    """Work location type enumeration"""
+    ON_SITE = "on_site"
+    REMOTE = "remote"
+    HYBRID = "hybrid"
+
+
 class Employee(BaseModel, TenantMixin, AuditMixin, NoteMixin, Base):
     """Employee master record"""
     __tablename__ = "employees"
@@ -49,6 +56,8 @@ class Employee(BaseModel, TenantMixin, AuditMixin, NoteMixin, Base):
     nationality = Column(String(100), nullable=True)
     national_id = Column(String(100), nullable=True)
     passport_number = Column(String(50), nullable=True)
+    blood_type = Column(String(10), nullable=True)  # A+, B+, O+, AB+, A-, B-, O-, AB-
+    medical_conditions = Column(Text, nullable=True)  # Pre-existing medical conditions
     
     # Contact Information
     personal_email = Column(String(255), nullable=True)
@@ -56,9 +65,15 @@ class Employee(BaseModel, TenantMixin, AuditMixin, NoteMixin, Base):
     phone = Column(String(20), nullable=True)
     mobile = Column(String(20), nullable=True)
     country_code = Column(String(2), nullable=True)
+    # Emergency Contact 1
     emergency_contact_name = Column(String(200), nullable=True)
     emergency_contact_phone = Column(String(20), nullable=True)
     emergency_contact_relationship = Column(String(100), nullable=True)
+    # Emergency Contact 2
+    emergency_contact_2_name = Column(String(200), nullable=True)
+    emergency_contact_2_phone = Column(String(20), nullable=True)
+    emergency_contact_2_relationship = Column(String(100), nullable=True)
+    emergency_contact_2_note = Column(Text, nullable=True)  # Additional notes for emergency contact 2
     
     # Address
     address_line1 = Column(String(255), nullable=True)
@@ -80,6 +95,7 @@ class Employee(BaseModel, TenantMixin, AuditMixin, NoteMixin, Base):
     position_id = Column(UUID(as_uuid=True), ForeignKey('positions.id'), nullable=True)
     manager_id = Column(UUID(as_uuid=True), ForeignKey('employees.id'), nullable=True)
     work_location = Column(String(255), nullable=True)
+    work_type = Column(SQLEnum(WorkType), nullable=True)  # On Site, Remote, Hybrid
     
     # Profile
     profile_photo_url = Column(String(500), nullable=True)
