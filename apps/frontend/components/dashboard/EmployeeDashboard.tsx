@@ -91,7 +91,7 @@ interface EmployeeDashboardProps {
   showSupervisorSection?: boolean
 }
 
-export function EmployeeDashboard({ showSupervisorSection = false }: EmployeeDashboardProps) {
+export function EmployeeDashboard({ showSupervisorSection: propShowSupervisorSection }: EmployeeDashboardProps) {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<EmployeeDashboardData | null>(null)
 
@@ -122,6 +122,13 @@ export function EmployeeDashboard({ showSupervisorSection = false }: EmployeeDas
       setLoading(false)
     }
   }
+
+  // Determine if supervisor section should be shown based on approvals data
+  // If prop is explicitly set, use it; otherwise check if user has approval rights
+  const showSupervisorSection = propShowSupervisorSection !== undefined 
+    ? propShowSupervisorSection 
+    : (data?.approvals !== null && data?.approvals !== undefined && 
+       data.approvals.total_pending !== undefined)
 
   const handleDownloadPayslip = async (payrollId: string) => {
     try {

@@ -9,10 +9,15 @@ from sqlalchemy.orm import selectinload
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
 import uuid
+import asyncio
+import logging
 
 from modules.employees.models import Employee
 from modules.auth.models import User
 from modules.approvals.services import ApprovalService
+from core.cache import cache, build_dashboard_key, invalidate_cache
+
+logger = logging.getLogger(__name__)
 
 
 class DashboardService:
@@ -45,8 +50,15 @@ class DashboardService:
     
     async def get_employee_dashboard(self, user_id: uuid.UUID) -> Dict[str, Any]:
         """
-        Get employee personal dashboard data
+        Get employee personal dashboard data with caching and parallel queries
         """
+        # Check cache first (5 minute TTL)
+        cache_key = build_dashboard_key(str(user_id), "employee")
+        cached_data = cache.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"Cache hit for dashboard: {cache_key}")
+            return cached_data
+        
         try:
             # Get employee record
             result = await self.db.execute(
@@ -70,18 +82,57 @@ class DashboardService:
             employee_position = employee.position.title if employee.position else "N/A"
             employee_department = employee.department.name if employee.department else "N/A"
             
-            # Try to get approval stats, but handle errors gracefully
+            # Parallelize all independent queries for better performance
+            # Run all data fetching queries concurrently
             try:
-                approval_stats = await self.approval_service.get_approval_stats(employee_id)
-                approvals_data = {
-                    "total_pending": approval_stats.total_pending,
-                    "leave_pending": approval_stats.leave_pending,
-                    "travel_pending": approval_stats.travel_pending,
-                    "timesheet_pending": approval_stats.timesheet_pending,
-                    "performance_pending": approval_stats.performance_pending
-                }
+                approval_stats_task = self.approval_service.get_approval_stats(employee_id)
+                payslips_task = self._get_employee_payslips(employee_id)
+                leave_requests_task = self._get_employee_leave_requests(employee_id)
+                travel_requests_task = self._get_employee_travel_requests(employee_id)
+                grievance_stats_task = self._get_employee_grievances(employee_id)
+                leave_balance_task = self._get_employee_leave_balance(employee_id)
+                
+                # Wait for all queries to complete in parallel
+                results = await asyncio.gather(
+                    approval_stats_task,
+                    payslips_task,
+                    leave_requests_task,
+                    travel_requests_task,
+                    grievance_stats_task,
+                    leave_balance_task,
+                    return_exceptions=True
+                )
+                
+                # Handle approval stats (first result)
+                if isinstance(results[0], Exception):
+                    logger.warning(f"Error fetching approval stats: {results[0]}")
+                    approvals_data = {
+                        "total_pending": 0,
+                        "leave_pending": 0,
+                        "travel_pending": 0,
+                        "timesheet_pending": 0,
+                        "performance_pending": 0
+                    }
+                else:
+                    approval_stats = results[0]
+                    approvals_data = {
+                        "total_pending": approval_stats.total_pending,
+                        "leave_pending": approval_stats.leave_pending,
+                        "travel_pending": approval_stats.travel_pending,
+                        "timesheet_pending": approval_stats.timesheet_pending,
+                        "performance_pending": approval_stats.performance_pending
+                    }
+                
+                # Extract other results (handle exceptions gracefully)
+                recent_payslips = results[1] if not isinstance(results[1], Exception) else []
+                recent_leave_requests = results[2] if not isinstance(results[2], Exception) else []
+                recent_travel_requests = results[3] if not isinstance(results[3], Exception) else []
+                grievance_stats = results[4] if not isinstance(results[4], Exception) else {"total": 0, "resolved": 0, "pending": 0}
+                leave_balance = results[5] if not isinstance(results[5], Exception) else {"annual": 0, "sick": 0, "total": 0}
+                
             except Exception as e:
-                # If approval service fails, return zeros
+                logger.error(f"Error in parallel queries: {e}")
+                # Fallback to empty data if parallel queries fail
                 approvals_data = {
                     "total_pending": 0,
                     "leave_pending": 0,
@@ -89,23 +140,13 @@ class DashboardService:
                     "timesheet_pending": 0,
                     "performance_pending": 0
                 }
+                recent_payslips = []
+                recent_leave_requests = []
+                recent_travel_requests = []
+                grievance_stats = {"total": 0, "resolved": 0, "pending": 0}
+                leave_balance = {"annual": 0, "sick": 0, "total": 0}
             
-            # Get recent payslips for this employee
-            recent_payslips = await self._get_employee_payslips(employee_id)
-            
-            # Get recent leave requests
-            recent_leave_requests = await self._get_employee_leave_requests(employee_id)
-            
-            # Get recent travel requests
-            recent_travel_requests = await self._get_employee_travel_requests(employee_id)
-            
-            # Get grievance stats
-            grievance_stats = await self._get_employee_grievances(employee_id)
-            
-            # Get leave balance
-            leave_balance = await self._get_employee_leave_balance(employee_id)
-            
-            return {
+            dashboard_data = {
                 "employee": {
                     "id": str(employee_id),
                     "name": f"{employee_first_name} {employee_last_name}",
@@ -131,8 +172,13 @@ class DashboardService:
                 },
                 "approvals": approvals_data
             }
+            
+            # Cache the result for 5 minutes (300 seconds)
+            cache.set(cache_key, dashboard_data, ttl=300)
+            
+            return dashboard_data
         except Exception as e:
-            print(f"Error in get_employee_dashboard: {e}")
+            logger.error(f"Error in get_employee_dashboard: {e}")
             # Rollback on error
             await self.db.rollback()
             return self._get_empty_employee_dashboard()
@@ -446,3 +492,13 @@ class DashboardService:
             "teamStats": {"totalMembers": 0, "activeMembers": 0, "onLeave": 0, "avgAttendance": 0},
             "complianceItems": {"pending": 0, "overdue": 0}
         }
+    
+    @staticmethod
+    def invalidate_dashboard_cache(user_id: str):
+        """
+        Invalidate dashboard cache for a specific user
+        Useful when dashboard data changes (e.g., approvals, leave requests, etc.)
+        """
+        cache_key = build_dashboard_key(user_id, "employee")
+        cache.delete(cache_key)
+        logger.debug(f"Invalidated dashboard cache for user: {user_id}")

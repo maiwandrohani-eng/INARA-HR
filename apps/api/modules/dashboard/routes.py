@@ -74,8 +74,10 @@ async def get_employee_dashboard(
     """
     Get employee personal dashboard data
     """
+    import uuid
     service = DashboardService(db)
-    dashboard_data = await service.get_employee_dashboard(current_user["id"])
+    user_id = uuid.UUID(current_user["id"])
+    dashboard_data = await service.get_employee_dashboard(user_id)
     
     return dashboard_data
 
@@ -88,14 +90,16 @@ async def get_supervisor_dashboard(
     """
     Get supervisor dashboard with team data and pending approvals
     """
+    import uuid
     service = DashboardService(db)
+    user_id = uuid.UUID(current_user["id"])
     
     # Check if user is actually a supervisor
-    is_supervisor = await service.check_if_supervisor(current_user["id"])
+    is_supervisor = await service.check_if_supervisor(user_id)
     if not is_supervisor:
         from core.exceptions import ForbiddenException
         raise ForbiddenException(detail="User is not a supervisor")
     
-    dashboard_data = await service.get_supervisor_dashboard(current_user["id"])
+    dashboard_data = await service.get_supervisor_dashboard(user_id)
     
     return dashboard_data
