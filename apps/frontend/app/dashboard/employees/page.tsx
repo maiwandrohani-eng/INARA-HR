@@ -12,6 +12,7 @@ import { AddEmployeeForm } from '@/components/forms/AddEmployeeForm'
 import { ImportEmployeesDialog } from '@/components/forms/ImportEmployeesDialog'
 import { exportEmployeeTemplate, exportToExcel, ExcelColumn } from '@/utils/excelExport'
 import { useRouter } from 'next/navigation'
+import { API_BASE_URL } from '@/lib/api-config'
 
 export default function EmployeesPage() {
   const router = useRouter()
