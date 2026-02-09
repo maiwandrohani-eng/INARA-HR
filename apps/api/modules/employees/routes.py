@@ -295,6 +295,18 @@ async def list_employees(
     
     Requires permission: hr:read
     """
+    from core.cache import cache, build_employees_list_key
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Check cache first (5 minute TTL)
+    cache_key = build_employees_list_key(skip, limit)
+    cached_data = cache.get(cache_key)
+    if cached_data is not None:
+        logger.debug(f"Cache hit for employees list: {cache_key}")
+        # Convert cached dicts back to EmployeeResponse objects
+        return [EmployeeResponse.model_validate(emp_dict) for emp_dict in cached_data]
+    
     # Query with eager loading of relationships
     result = await db.execute(
         select(Employee)
@@ -308,7 +320,15 @@ async def list_employees(
         .limit(limit)
     )
     employees = result.scalars().all()
-    return employees
+    
+    # Convert to Pydantic models for proper serialization
+    employees_list = [EmployeeResponse.model_validate(emp) for emp in employees]
+    
+    # Cache the result for 5 minutes (300 seconds)
+    # Convert to dict for JSON serialization
+    cache.set(cache_key, [emp.model_dump() for emp in employees_list], ttl=300)
+    
+    return employees_list
 
 
 @router.post("/", response_model=EmployeeResponse, status_code=status.HTTP_201_CREATED)
@@ -322,8 +342,13 @@ async def create_employee(
     
     Requires permission: hr:write
     """
+    from core.cache import invalidate_cache
+    
     service = EmployeeService(db)
     employee = await service.create_employee(employee_data)
+    
+    # Invalidate employees list cache
+    invalidate_cache("employees:list:*")
     
     # Reload with relationships to avoid detached instance errors
     result = await db.execute(
@@ -420,6 +445,8 @@ async def update_employee(
         from core.exceptions import NotFoundException
         raise NotFoundException(resource="Employee")
     
+    from core.cache import invalidate_cache
+    
     # Update fields
     update_data = employee_data.model_dump(exclude_unset=True)
     
@@ -443,6 +470,9 @@ async def update_employee(
     
     await db.commit()
     await db.refresh(employee)
+    
+    # Invalidate employees list cache
+    invalidate_cache("employees:list:*")
     
     # Reload with relationships
     result = await db.execute(
@@ -470,8 +500,14 @@ async def delete_employee(
     
     Requires permission: hr:write
     """
+    from core.cache import invalidate_cache
+    
     service = EmployeeService(db)
     await service.delete_employee(employee_id)
+    
+    # Invalidate employees list cache
+    invalidate_cache("employees:list:*")
+    
     return None
 
 
@@ -486,8 +522,14 @@ async def activate_employee(
     
     Requires permission: hr:write
     """
+    from core.cache import invalidate_cache
+    
     service = EmployeeService(db)
     employee = await service.activate_employee(employee_id)
+    
+    # Invalidate employees list cache
+    invalidate_cache("employees:list:*")
+    
     return employee
 
 
@@ -502,8 +544,14 @@ async def deactivate_employee(
     
     Requires permission: hr:write
     """
+    from core.cache import invalidate_cache
+    
     service = EmployeeService(db)
     employee = await service.deactivate_employee(employee_id)
+    
+    # Invalidate employees list cache
+    invalidate_cache("employees:list:*")
+    
     return employee
 
 

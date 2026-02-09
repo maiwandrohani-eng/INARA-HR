@@ -166,6 +166,16 @@ def build_approvals_key(user_id: str) -> str:
     return f"approvals:pending:{user_id}"
 
 
+def build_employees_list_key(skip: int = 0, limit: int = 100, filters: dict = None) -> str:
+    """Build cache key for employees list"""
+    filter_str = ""
+    if filters:
+        # Sort filters for consistent cache keys
+        sorted_filters = sorted(filters.items())
+        filter_str = ":" + ":".join(f"{k}={v}" for k, v in sorted_filters if v)
+    return f"employees:list:{skip}:{limit}{filter_str}"
+
+
 # Async Redis initialization functions for lifespan management
 async def init_redis():
     """Initialize Redis connection - no-op for sync redis"""

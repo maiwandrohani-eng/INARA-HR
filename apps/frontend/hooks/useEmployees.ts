@@ -46,7 +46,8 @@ export function useEmployees() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        cache: 'no-store', // Prevent caching
+        // Allow browser caching - backend has Redis cache with 5min TTL
+        cache: 'default',
       })
       
       if (response.ok) {
