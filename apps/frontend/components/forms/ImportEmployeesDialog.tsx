@@ -128,6 +128,10 @@ export function ImportEmployeesDialog({ open, onOpenChange, onSuccess }: ImportE
                 case 'mobile':
                   row.mobile = trimmedValue
                   break
+                case 'country code':
+                case 'country_code':
+                  row.country_code = trimmedValue.toUpperCase()
+                  break
                 case 'date of birth':
                 case 'date_of_birth':
                 case 'dob':
@@ -150,6 +154,49 @@ export function ImportEmployeesDialog({ open, onOpenChange, onSuccess }: ImportE
                 case 'hire date':
                 case 'hire_date':
                   row.hire_date = trimmedValue
+                  break
+                case 'national id':
+                case 'national_id':
+                  row.national_id = trimmedValue
+                  break
+                case 'passport number':
+                case 'passport_number':
+                  row.passport_number = trimmedValue
+                  break
+                case 'primary emergency contact name':
+                  row.emergency_contact_name = trimmedValue
+                  break
+                case 'primary emergency contact phone':
+                  row.emergency_contact_phone = trimmedValue
+                  break
+                case 'primary emergency contact relationship':
+                  row.emergency_contact_relationship = trimmedValue
+                  break
+                case 'secondary emergency contact name':
+                  row.emergency_contact_2_name = trimmedValue
+                  break
+                case 'secondary emergency contact phone':
+                  row.emergency_contact_2_phone = trimmedValue
+                  break
+                case 'secondary emergency contact relationship':
+                  row.emergency_contact_2_relationship = trimmedValue
+                  break
+                case 'secondary emergency contact notes':
+                  row.emergency_contact_2_note = trimmedValue
+                  break
+                case 'blood type':
+                case 'blood_type':
+                  row.blood_type = trimmedValue.toUpperCase()
+                  break
+                case 'pre-existing medical conditions':
+                case 'medical conditions':
+                case 'medical_conditions':
+                  row.medical_conditions = trimmedValue
+                  break
+                case 'type of work':
+                case 'work type':
+                case 'work_type':
+                  row.work_type = trimmedValue.toLowerCase().replace(/\s+/g, '_')
                   break
                 case 'position':
                 case 'department':

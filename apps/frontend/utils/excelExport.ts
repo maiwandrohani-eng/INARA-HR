@@ -45,9 +45,25 @@ export function exportEmployeeTemplate() {
     { header: 'Date of Birth', key: 'date_of_birth', width: 18 }, // Optional - Format: YYYY-MM-DD
     { header: 'Gender', key: 'gender', width: 12 }, // Optional - Values: male, female, other
     { header: 'Nationality', key: 'nationality', width: 20 }, // Optional - Country name
-    { header: 'Employment Type', key: 'employment_type', width: 18 }, // Optional - Values: full_time, part_time, consultant, volunteer, intern
+    { header: 'Country Code', key: 'country_code', width: 12 }, // Optional - ISO country code (e.g., AF, LB)
+    { header: 'Employment Type', key: 'employment_type', width: 18 }, // Optional - Values: full_time, part_time, contract, consultant, volunteer, intern
     { header: 'Work Location', key: 'work_location', width: 25 }, // Optional - City/Office location
     { header: 'Hire Date', key: 'hire_date', width: 18 }, // Optional - Format: YYYY-MM-DD
+    // Identity documents
+    { header: 'National ID', key: 'national_id', width: 20 }, // Optional
+    { header: 'Passport Number', key: 'passport_number', width: 20 }, // Optional
+    // Emergency contacts
+    { header: 'Primary Emergency Contact Name', key: 'emergency_contact_name', width: 30 }, // Optional
+    { header: 'Primary Emergency Contact Phone', key: 'emergency_contact_phone', width: 25 }, // Optional
+    { header: 'Primary Emergency Contact Relationship', key: 'emergency_contact_relationship', width: 30 }, // Optional
+    { header: 'Secondary Emergency Contact Name', key: 'emergency_contact_2_name', width: 30 }, // Optional
+    { header: 'Secondary Emergency Contact Phone', key: 'emergency_contact_2_phone', width: 25 }, // Optional
+    { header: 'Secondary Emergency Contact Relationship', key: 'emergency_contact_2_relationship', width: 30 }, // Optional
+    { header: 'Secondary Emergency Contact Notes', key: 'emergency_contact_2_note', width: 40 }, // Optional
+    // Medical & work type
+    { header: 'Blood Type', key: 'blood_type', width: 12 }, // Optional - A+, A-, B+, B-, AB+, AB-, O+, O-
+    { header: 'Pre-existing Medical Conditions', key: 'medical_conditions', width: 40 }, // Optional
+    { header: 'Type of Work', key: 'work_type', width: 18 }, // Optional - on_site, remote, hybrid
     // Note: Position and Department are not imported (require ID lookup in system)
     // If needed, these should be set manually after import
   ]
@@ -71,9 +87,16 @@ export function exportEmployeeTemplate() {
     ['  - Date of Birth: Format YYYY-MM-DD (e.g., 1990-01-15)'],
     ['  - Gender: male, female, or other'],
     ['  - Nationality: Country name (e.g., Afghanistan)'],
-    ['  - Employment Type: full_time, part_time, consultant, volunteer, or intern'],
+    ['  - Country Code: ISO code (e.g., AF, LB, EG, PS, SY, TR, GB)'],
+    ['  - Employment Type: full_time, part_time, contract, consultant, volunteer, or intern'],
     ['  - Work Location: City or office location'],
     ['  - Hire Date: Format YYYY-MM-DD (e.g., 2024-01-01)'],
+    ['  - National ID: National identification number'],
+    ['  - Passport Number: Passport number'],
+    ['  - Primary / Secondary Emergency Contacts: name, phone, relationship, and notes'],
+    ['  - Blood Type: A+, A-, B+, B-, AB+, AB-, O+, or O-'],
+    ['  - Pre-existing Medical Conditions: Any relevant medical details'],
+    ['  - Type of Work: on_site, remote, or hybrid'],
     [''],
     ['NOTES:'],
     ['  - Position and Department fields are NOT imported (use system to assign after import)'],
@@ -107,9 +130,22 @@ export function exportEmployeeTemplate() {
       date_of_birth: '1990-01-15',
       gender: 'male',
       nationality: 'Afghanistan',
+      country_code: 'AF',
       employment_type: 'full_time',
       work_location: 'Kabul',
       hire_date: '2024-01-01',
+      national_id: '1234567890',
+      passport_number: 'P1234567',
+      emergency_contact_name: 'Jane Doe',
+      emergency_contact_phone: '+93000000000',
+      emergency_contact_relationship: 'Spouse',
+      emergency_contact_2_name: 'Mark Doe',
+      emergency_contact_2_phone: '+93111111111',
+      emergency_contact_2_relationship: 'Brother',
+      emergency_contact_2_note: 'Lives in Kabul, available 24/7',
+      blood_type: 'O+',
+      medical_conditions: 'Asthma',
+      work_type: 'on_site',
     }
   ]
   
