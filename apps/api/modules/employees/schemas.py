@@ -69,8 +69,35 @@ class EmployeeUpdate(BaseModel):
     """Employee update schema"""
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    preferred_name: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    gender: Optional[str] = None
+    nationality: Optional[str] = None
+    work_email: Optional[EmailStr] = None
     phone: Optional[str] = None
     mobile: Optional[str] = None
+    country_code: Optional[str] = Field(None, min_length=2, max_length=2)
+    employment_type: Optional[str] = None
+    hire_date: Optional[date] = None
+    probation_end_date: Optional[date] = None
+    work_location: Optional[str] = None
+    # Identity documents
+    national_id: Optional[str] = None
+    passport_number: Optional[str] = None
+    # Emergency contacts
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    emergency_contact_relationship: Optional[str] = None
+    emergency_contact_2_name: Optional[str] = None
+    emergency_contact_2_phone: Optional[str] = None
+    emergency_contact_2_relationship: Optional[str] = None
+    emergency_contact_2_note: Optional[str] = None
+    # Medical & Health
+    blood_type: Optional[str] = None
+    medical_conditions: Optional[str] = None
+    # Work Type
+    work_type: Optional[str] = None
     department_id: Optional[uuid.UUID] = None
     position_id: Optional[uuid.UUID] = None
     manager_id: Optional[uuid.UUID] = None
