@@ -31,24 +31,35 @@ class EmployeeService:
     
     async def create_employee(self, employee_data: EmployeeCreate):
         """Create new employee"""
+        from sqlalchemy import select
+        from sqlalchemy.exc import IntegrityError
+        from core.exceptions import AlreadyExistsException, ValidationException
+        from modules.employees.models import Employee, Contract
+        
         # Auto-generate employee number if not provided
         employee_dict = employee_data.model_dump()
         
         # Extract contract-related fields (not part of Employee model)
-        contract_salary = employee_dict.pop('salary', None)
-        contract_currency = employee_dict.pop('currency', 'USD')
-        contract_type = employee_dict.pop('contract_type', None)
-        contract_start_date = employee_dict.pop('contract_start_date', None)
-        contract_end_date = employee_dict.pop('contract_end_date', None)
+        contract_salary = employee_dict.pop("salary", None)
+        contract_currency = employee_dict.pop("currency", "USD")
+        contract_type = employee_dict.pop("contract_type", None)
+        contract_start_date = employee_dict.pop("contract_start_date", None)
+        contract_end_date = employee_dict.pop("contract_end_date", None)
         
-        if not employee_dict.get('employee_number'):
+        # Normalize enum-like fields to expected values
+        employment_type = employee_dict.get("employment_type")
+        if employment_type:
+            employee_dict["employment_type"] = employment_type.lower()
+        
+        work_type = employee_dict.get("work_type")
+        if work_type:
+            employee_dict["work_type"] = work_type.lower()
+        
+        if not employee_dict.get("employee_number"):
             # Get all employee numbers matching pattern
-            from sqlalchemy import select
-            from modules.employees.models import Employee
-            
             result = await self.db.execute(
                 select(Employee.employee_number)
-                .where(Employee.employee_number.like('EMP-%'))
+                .where(Employee.employee_number.like("EMP-%"))
                 .where(Employee.is_deleted == False)
             )
             employee_numbers = result.scalars().all()
@@ -58,29 +69,38 @@ class EmployeeService:
                 max_num = 0
                 for emp_num in employee_numbers:
                     try:
-                        num = int(emp_num.split('-')[1])
+                        num = int(emp_num.split("-")[1])
                         if num > max_num:
                             max_num = num
                     except (IndexError, ValueError):
                         continue
-                employee_dict['employee_number'] = f'EMP-{max_num + 1:03d}'
+                employee_dict["employee_number"] = f"EMP-{max_num + 1:03d}"
             else:
-                employee_dict['employee_number'] = 'EMP-001'
+                employee_dict["employee_number"] = "EMP-001"
         
-        # Create employee
-        employee = await self.employee_repo.create(employee_dict)
-        await self.db.commit()
-        await self.db.refresh(employee)
+        try:
+            # Create employee
+            employee = await self.employee_repo.create(employee_dict)
+            await self.db.commit()
+            await self.db.refresh(employee)
+        except IntegrityError as exc:
+            await self.db.rollback()
+            message = "Employee with this email or employee number already exists"
+            raise AlreadyExistsException(resource="Employee", details=str(exc)) from exc
+        except Exception as exc:
+            await self.db.rollback()
+            raise ValidationException(
+                message="Failed to create employee due to invalid data",
+                details=str(exc),
+            ) from exc
         
         # Create contract if salary is provided
         if contract_salary and contract_salary > 0:
-            from modules.employees.models import Contract
-            from datetime import datetime
-            
             # Auto-generate contract number
             contract_count = await self.db.execute(
-                select(Contract.contract_number)
-                .where(Contract.contract_number.like('CON-%'))
+                select(Contract.contract_number).where(
+                    Contract.contract_number.like("CON-%")
+                )
             )
             contract_numbers = contract_count.scalars().all()
             
@@ -88,31 +108,43 @@ class EmployeeService:
                 max_num = 0
                 for con_num in contract_numbers:
                     try:
-                        num = int(con_num.split('-')[1])
+                        num = int(con_num.split("-")[1])
                         if num > max_num:
                             max_num = num
                     except (IndexError, ValueError):
                         continue
-                contract_number = f'CON-{max_num + 1:04d}'
+                contract_number = f"CON-{max_num + 1:04d}"
             else:
-                contract_number = 'CON-0001'
+                contract_number = "CON-0001"
             
             # Create contract
             contract = Contract(
                 employee_id=employee.id,
                 contract_number=contract_number,
-                contract_type=contract_type or 'Permanent',
+                contract_type=contract_type or "Permanent",
                 start_date=contract_start_date or employee.hire_date,
                 end_date=contract_end_date,
                 salary=contract_salary,
                 currency=contract_currency,
-                salary_frequency='monthly',
-                is_active='true',
-                country_code=employee.country_code or 'AF'
+                salary_frequency="monthly",
+                is_active="true",
+                country_code=employee.country_code or "AF",
             )
             
             self.db.add(contract)
-            await self.db.commit()
+            try:
+                await self.db.commit()
+            except IntegrityError as exc:
+                await self.db.rollback()
+                raise AlreadyExistsException(
+                    resource="Contract", details=str(exc)
+                ) from exc
+            except Exception as exc:
+                await self.db.rollback()
+                raise ValidationException(
+                    message="Failed to create contract for employee",
+                    details=str(exc),
+                ) from exc
         
         return employee
     
