@@ -55,17 +55,15 @@ class EmployeeService:
         if work_type:
             employee_dict["work_type"] = work_type.lower()
         
-        if not employee_dict.get("employee_number"):
-            # Get all employee numbers matching pattern
+        async def _generate_next_employee_number() -> str:
+            """Generate the next sequential employee number EMP-xxx."""
             result = await self.db.execute(
                 select(Employee.employee_number)
                 .where(Employee.employee_number.like("EMP-%"))
-                .where(Employee.is_deleted == False)
             )
             employee_numbers = result.scalars().all()
             
             if employee_numbers:
-                # Extract all numbers and find the maximum
                 max_num = 0
                 for emp_num in employee_numbers:
                     try:
@@ -74,25 +72,55 @@ class EmployeeService:
                             max_num = num
                     except (IndexError, ValueError):
                         continue
-                employee_dict["employee_number"] = f"EMP-{max_num + 1:03d}"
-            else:
-                employee_dict["employee_number"] = "EMP-001"
+                return f"EMP-{max_num + 1:03d}"
+            return "EMP-001"
         
-        try:
-            # Create employee
-            employee = await self.employee_repo.create(employee_dict)
-            await self.db.commit()
-            await self.db.refresh(employee)
-        except IntegrityError as exc:
-            await self.db.rollback()
-            message = "Employee with this email or employee number already exists"
-            raise AlreadyExistsException(resource="Employee", details=str(exc)) from exc
-        except Exception as exc:
-            await self.db.rollback()
+        # Ensure we always have some employee number (auto-generated if missing)
+        if not employee_dict.get("employee_number"):
+            employee_dict["employee_number"] = await _generate_next_employee_number()
+        
+        # Try to create employee, retrying on employee_number conflicts by regenerating
+        employee = None
+        max_attempts = 5
+        for attempt in range(max_attempts):
+            try:
+                employee = await self.employee_repo.create(employee_dict)
+                await self.db.commit()
+                await self.db.refresh(employee)
+                break
+            except IntegrityError as exc:
+                await self.db.rollback()
+                error_text = str(exc)
+                
+                # Unique violation on employee_number – regenerate and retry
+                if "employees_employee_number_key" in error_text:
+                    employee_dict["employee_number"] = await _generate_next_employee_number()
+                    continue
+                
+                # Unique violation on work_email – surface clear error
+                if "employees_work_email_key" in error_text:
+                    raise AlreadyExistsException(
+                        resource="Employee",
+                        details="An employee with this work email already exists.",
+                    ) from exc
+                
+                # Other integrity errors
+                raise ValidationException(
+                    message="Failed to create employee due to database constraint",
+                    details=error_text,
+                ) from exc
+            except Exception as exc:
+                await self.db.rollback()
+                raise ValidationException(
+                    message="Failed to create employee due to invalid data",
+                    details=str(exc),
+                ) from exc
+        
+        if employee is None:
             raise ValidationException(
-                message="Failed to create employee due to invalid data",
-                details=str(exc),
-            ) from exc
+                message="Could not generate a unique employee number after multiple attempts",
+                details="Too many conflicts on employee_number",
+            )
         
         # Create contract if salary is provided
         if contract_salary and contract_salary > 0:
