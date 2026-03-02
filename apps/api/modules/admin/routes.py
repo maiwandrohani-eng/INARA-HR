@@ -199,11 +199,14 @@ async def fix_my_roles(
     """
     user_email = current_user.get("email", "")
     
-    # Only allow fixing maiwand@inara.org or if user already has some admin access
-    if user_email != "maiwand@inara.org" and not any(role in current_user.get("roles", []) for role in ["admin", "ceo", "super_admin"]):
+    # Allow fixing for specific known admin emails or existing admins
+    allowed_emails = {"maiwand@inara.org", "admin@inara.org"}
+    if user_email not in allowed_emails and not any(
+        role in current_user.get("roles", []) for role in ["admin", "ceo", "super_admin"]
+    ):
         raise HTTPException(
             status_code=403,
-            detail="This endpoint can only be used by maiwand@inara.org or existing admins"
+            detail="This endpoint can only be used by authorized admin accounts or existing admins"
         )
     
     try:
