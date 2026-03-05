@@ -573,9 +573,11 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                  <SelectItem value="full_time">Full Time</SelectItem>
-                  <SelectItem value="part_time">Part Time</SelectItem>
-                  <SelectItem value="contract">Contract</SelectItem>
+                    <SelectItem value="full_time">Full-Time</SelectItem>
+                    <SelectItem value="part_time">Part-Time</SelectItem>
+                    <SelectItem value="consultant">Consultant</SelectItem>
+                    <SelectItem value="volunteer">Volunteer - Paid</SelectItem>
+                    <SelectItem value="volunteer">Volunteer - Unpaid</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
