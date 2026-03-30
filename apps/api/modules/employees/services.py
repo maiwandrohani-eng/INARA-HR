@@ -46,14 +46,28 @@ class EmployeeService:
         contract_start_date = employee_dict.pop("contract_start_date", None)
         contract_end_date = employee_dict.pop("contract_end_date", None)
         
-        # Normalize enum-like fields to expected values
+        # Normalize / validate enum-like fields to expected values
+        from modules.employees.models import EmploymentType, WorkType
+
         employment_type = employee_dict.get("employment_type")
         if employment_type:
-            employee_dict["employment_type"] = employment_type.lower()
-        
+            normalized_employment_type = employment_type.strip().lower().replace(" ", "_")
+            if normalized_employment_type not in {t.value for t in EmploymentType}:
+                raise ValidationException(
+                    message="Invalid employment type",
+                    details=f"employment_type must be one of {[t.value for t in EmploymentType]}",
+                )
+            employee_dict["employment_type"] = normalized_employment_type
+
         work_type = employee_dict.get("work_type")
         if work_type:
-            employee_dict["work_type"] = work_type.lower()
+            normalized_work_type = work_type.strip().lower().replace(" ", "_")
+            if normalized_work_type not in {t.value for t in WorkType}:
+                raise ValidationException(
+                    message="Invalid work type",
+                    details=f"work_type must be one of {[t.value for t in WorkType]}",
+                )
+            employee_dict["work_type"] = normalized_work_type
         
         async def _generate_next_employee_number() -> str:
             """Generate the next sequential employee number EMP-xxx."""

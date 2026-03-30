@@ -239,7 +239,13 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
       
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.detail || error.error?.message || 'Failed to add employee')
+        const backendMessage =
+          error.error?.message ||
+          error.error?.details ||
+          error.detail ||
+          error.message ||
+          'Failed to add employee'
+        throw new Error(backendMessage)
       }
 
       alert('Employee added successfully!')
