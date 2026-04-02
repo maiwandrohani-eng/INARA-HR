@@ -4,6 +4,16 @@
 -- Safe to run multiple times — only creates MISSING records
 -- ============================================================
 
+-- Step 1: Link existing employees to their user accounts where user_id is NULL
+--         (handles employees that were manually typed in without a user link)
+UPDATE employees e
+SET user_id = u.id,
+    updated_at = NOW()
+FROM users u
+WHERE e.work_email = u.email
+  AND e.user_id IS NULL
+  AND u.is_deleted = false;
+
 DO $$
 DECLARE
     rec         RECORD;
@@ -34,6 +44,7 @@ BEGIN
         WHERE e.id IS NULL
           AND u.is_deleted = false
           AND u.email NOT IN ('admin@inara.org', 'hr@inara.org')
+          AND u.email NOT IN (SELECT work_email FROM employees WHERE work_email IS NOT NULL)
         ORDER BY u.created_at
     LOOP
         -- Assign next sequential employee number
