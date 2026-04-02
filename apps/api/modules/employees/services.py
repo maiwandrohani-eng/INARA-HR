@@ -46,18 +46,35 @@ class EmployeeService:
         contract_start_date = employee_dict.pop("contract_start_date", None)
         contract_end_date = employee_dict.pop("contract_end_date", None)
         
-        # Normalize / validate enum-like fields to expected values
+        # Normalize enum-like fields to actual enum members accepted by SQLAlchemy.
         from modules.employees.models import EmploymentType, WorkType
+
+        def _to_enum_member(value: str, enum_cls):
+            token = value.strip().lower().replace("-", "_").replace(" ", "_")
+            for member in enum_cls:
+                if token in (member.value.lower(), member.name.lower()):
+                    return member
+            return None
 
         employment_type = employee_dict.get("employment_type")
         if employment_type:
-            normalized_employment_type = employment_type.strip().lower().replace(" ", "_")
-            employee_dict["employment_type"] = normalized_employment_type
+            employment_type_member = _to_enum_member(employment_type, EmploymentType)
+            if not employment_type_member:
+                raise ValidationException(
+                    message="Invalid employment_type",
+                    details=f"Unsupported value: {employment_type}",
+                )
+            employee_dict["employment_type"] = employment_type_member
 
         work_type = employee_dict.get("work_type")
         if work_type:
-            normalized_work_type = work_type.strip().lower().replace(" ", "_")
-            employee_dict["work_type"] = normalized_work_type
+            work_type_member = _to_enum_member(work_type, WorkType)
+            if not work_type_member:
+                raise ValidationException(
+                    message="Invalid work_type",
+                    details=f"Unsupported value: {work_type}",
+                )
+            employee_dict["work_type"] = work_type_member
         
         async def _generate_next_employee_number() -> str:
             """Generate the next sequential employee number EMP-xxx."""
