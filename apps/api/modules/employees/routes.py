@@ -287,6 +287,7 @@ async def export_organization_chart_pdf(
 async def list_employees(
     skip: int = 0,
     limit: int = 100,
+    refresh: bool = Query(False),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_hr_read)
 ):
@@ -301,11 +302,14 @@ async def list_employees(
     
     # Check cache first (5 minute TTL)
     cache_key = build_employees_list_key(skip, limit)
-    cached_data = cache.get(cache_key)
-    if cached_data is not None:
-        logger.debug(f"Cache hit for employees list: {cache_key}")
-        # Convert cached dicts back to EmployeeResponse objects
-        return [EmployeeResponse.model_validate(emp_dict) for emp_dict in cached_data]
+    if refresh:
+        cache.delete(cache_key)
+    else:
+        cached_data = cache.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"Cache hit for employees list: {cache_key}")
+            # Convert cached dicts back to EmployeeResponse objects
+            return [EmployeeResponse.model_validate(emp_dict) for emp_dict in cached_data]
     
     # Query with eager loading of relationships
     result = await db.execute(

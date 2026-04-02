@@ -41,13 +41,12 @@ export function useEmployees() {
         return
       }
       
-      const response = await fetch(`${API_BASE_URL}/employees/`, {
+      const response = await fetch(`${API_BASE_URL}/employees/?refresh=true`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        // Allow browser caching - backend has Redis cache with 5min TTL
-        cache: 'default',
+        cache: 'no-store',
       })
       
       if (response.ok) {
