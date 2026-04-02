@@ -95,6 +95,27 @@ class EmployeeService:
                         continue
                 return f"EMP-{max_num + 1:03d}"
             return "EMP-001"
+
+        async def _generate_next_contract_number() -> str:
+            """Generate the next sequential contract number CON-xxxx."""
+            result = await self.db.execute(
+                select(Contract.contract_number).where(
+                    Contract.contract_number.like("CON-%")
+                )
+            )
+            contract_numbers = result.scalars().all()
+
+            if contract_numbers:
+                max_num = 0
+                for con_num in contract_numbers:
+                    try:
+                        num = int(con_num.split("-")[1])
+                        if num > max_num:
+                            max_num = num
+                    except (IndexError, ValueError):
+                        continue
+                return f"CON-{max_num + 1:04d}"
+            return "CON-0001"
         
         # Ensure we always have some employee number (auto-generated if missing)
         if not employee_dict.get("employee_number"):
@@ -105,8 +126,27 @@ class EmployeeService:
         max_attempts = 5
         for attempt in range(max_attempts):
             try:
-                employee = await self.employee_repo.create(employee_dict)
-                await self.db.commit()
+                async with self.db.begin():
+                    employee = await self.employee_repo.create(employee_dict)
+
+                    # Create contract in the same transaction if salary is provided.
+                    if contract_salary and contract_salary > 0:
+                        contract_number = await _generate_next_contract_number()
+
+                        contract = Contract(
+                            employee_id=employee.id,
+                            contract_number=contract_number,
+                            contract_type=contract_type or "Permanent",
+                            start_date=contract_start_date or employee.hire_date,
+                            end_date=contract_end_date,
+                            salary=contract_salary,
+                            currency=contract_currency,
+                            salary_frequency="monthly",
+                            is_active="true",
+                            country_code=employee.country_code or "AF",
+                        )
+                        self.db.add(contract)
+
                 await self.db.refresh(employee)
                 break
             except IntegrityError as exc:
@@ -124,6 +164,10 @@ class EmployeeService:
                         resource="Employee",
                         details="An employee with this work email already exists.",
                     ) from exc
+
+                # Unique violation on contract_number – regenerate and retry.
+                if "contracts_contract_number_key" in error_text:
+                    continue
                 
                 # Other integrity errors
                 raise ValidationException(
@@ -142,58 +186,6 @@ class EmployeeService:
                 message="Could not generate a unique employee number after multiple attempts",
                 details="Too many conflicts on employee_number",
             )
-        
-        # Create contract if salary is provided
-        if contract_salary and contract_salary > 0:
-            # Auto-generate contract number
-            contract_count = await self.db.execute(
-                select(Contract.contract_number).where(
-                    Contract.contract_number.like("CON-%")
-                )
-            )
-            contract_numbers = contract_count.scalars().all()
-            
-            if contract_numbers:
-                max_num = 0
-                for con_num in contract_numbers:
-                    try:
-                        num = int(con_num.split("-")[1])
-                        if num > max_num:
-                            max_num = num
-                    except (IndexError, ValueError):
-                        continue
-                contract_number = f"CON-{max_num + 1:04d}"
-            else:
-                contract_number = "CON-0001"
-            
-            # Create contract
-            contract = Contract(
-                employee_id=employee.id,
-                contract_number=contract_number,
-                contract_type=contract_type or "Permanent",
-                start_date=contract_start_date or employee.hire_date,
-                end_date=contract_end_date,
-                salary=contract_salary,
-                currency=contract_currency,
-                salary_frequency="monthly",
-                is_active="true",
-                country_code=employee.country_code or "AF",
-            )
-            
-            self.db.add(contract)
-            try:
-                await self.db.commit()
-            except IntegrityError as exc:
-                await self.db.rollback()
-                raise AlreadyExistsException(
-                    resource="Contract", details=str(exc)
-                ) from exc
-            except Exception as exc:
-                await self.db.rollback()
-                raise ValidationException(
-                    message="Failed to create contract for employee",
-                    details=str(exc),
-                ) from exc
         
         return employee
     
