@@ -4,94 +4,59 @@
 -- Safe to run multiple times — only creates MISSING records
 -- ============================================================
 
--- Step 1: Link existing employees to their user accounts where user_id is NULL
---         (handles employees that were manually typed in without a user link)
+-- Step 1: Link existing employees (manually added) to their user accounts
 UPDATE employees e
-SET user_id = u.id,
+SET user_id    = u.id,
     updated_at = NOW()
 FROM users u
 WHERE e.work_email = u.email
   AND e.user_id IS NULL
   AND u.is_deleted = false;
 
-DO $$
-DECLARE
-    rec         RECORD;
-    max_num     INT := 0;
-    next_num    INT;
-    emp_number  TEXT;
-    emp_id      UUID;
-    created_count INT := 0;
-BEGIN
-    -- Find the current highest EMP-xxx number
-    SELECT COALESCE(MAX(CAST(SPLIT_PART(employee_number, '-', 2) AS INT)), 0)
-    INTO max_num
+-- Step 2: Create employee records for every user that still has none
+WITH max_emp AS (
+    SELECT COALESCE(MAX(CAST(SPLIT_PART(employee_number, '-', 2) AS INT)), 0) AS max_num
     FROM employees
-    WHERE employee_number ~ '^EMP-[0-9]+$';
-
-    -- Loop over every user that has no employee record
-    -- Excludes system accounts: admin@inara.org and hr@inara.org
-    FOR rec IN
-        SELECT
-            u.id          AS user_id,
-            u.email,
-            u.first_name,
-            u.last_name,
-            u.country_code,
-            u.created_at
-        FROM users u
-        LEFT JOIN employees e ON u.id = e.user_id
-        WHERE e.id IS NULL
-          AND u.is_deleted = false
-          AND u.email NOT IN ('admin@inara.org', 'hr@inara.org')
-          AND u.email NOT IN (SELECT work_email FROM employees WHERE work_email IS NOT NULL)
-        ORDER BY u.created_at
-    LOOP
-        -- Assign next sequential employee number
-        max_num    := max_num + 1;
-        next_num   := max_num;
-        emp_number := 'EMP-' || LPAD(next_num::TEXT, 3, '0');
-        emp_id     := gen_random_uuid();
-
-        INSERT INTO employees (
-            id,
-            user_id,
-            employee_number,
-            first_name,
-            last_name,
-            work_email,
-            status,
-            employment_type,
-            hire_date,
-            country_code,
-            created_at,
-            updated_at,
-            is_deleted
-        ) VALUES (
-            emp_id,
-            rec.user_id,
-            emp_number,
-            rec.first_name,
-            rec.last_name,
-            rec.email,
-            'ACTIVE',
-            'FULL_TIME',
-            COALESCE(rec.created_at::DATE, CURRENT_DATE),
-            COALESCE(NULLIF(rec.country_code, ''), 'LB'),
-            NOW(),
-            NOW(),
-            false
-        );
-
-        created_count := created_count + 1;
-        RAISE NOTICE 'Created % – % % (%)', emp_number, rec.first_name, rec.last_name, rec.email;
-    END LOOP;
-
-    RAISE NOTICE '========================================';
-    RAISE NOTICE 'Done. Employee records created: %', created_count;
-    RAISE NOTICE '========================================';
-END;
-$$;
+    WHERE employee_number ~ '^EMP-[0-9]+$'
+),
+new_users AS (
+    SELECT
+        u.id          AS user_id,
+        u.email,
+        u.first_name,
+        u.last_name,
+        u.country_code,
+        u.created_at,
+        ROW_NUMBER() OVER (ORDER BY u.created_at) AS rn
+    FROM users u
+    LEFT JOIN employees e ON u.id = e.user_id
+    WHERE e.id IS NULL
+      AND u.is_deleted = false
+      AND u.email NOT IN ('admin@inara.org', 'hr@inara.org')
+      AND u.email NOT IN (SELECT work_email FROM employees WHERE work_email IS NOT NULL)
+)
+INSERT INTO employees (
+    id, user_id, employee_number,
+    first_name, last_name, work_email,
+    status, employment_type, hire_date,
+    country_code, created_at, updated_at, is_deleted
+)
+SELECT
+    gen_random_uuid(),
+    nu.user_id,
+    'EMP-' || LPAD((m.max_num + nu.rn)::TEXT, 3, '0'),
+    nu.first_name,
+    nu.last_name,
+    nu.email,
+    'ACTIVE',
+    'FULL_TIME',
+    COALESCE(nu.created_at::DATE, CURRENT_DATE),
+    COALESCE(NULLIF(nu.country_code, ''), 'LB'),
+    NOW(),
+    NOW(),
+    false
+FROM new_users nu
+CROSS JOIN max_emp m;
 
 -- Verify result
 SELECT COUNT(*) AS total_employees FROM employees WHERE is_deleted = false;
