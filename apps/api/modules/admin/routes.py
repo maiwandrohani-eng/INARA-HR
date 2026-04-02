@@ -6,11 +6,12 @@ Administrative functions and system management
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 from io import BytesIO
 import os
 import re
 import uuid
+from datetime import datetime, date
 
 from core.database import get_db
 from core.dependencies import get_current_user, require_admin
@@ -281,6 +282,106 @@ async def fix_my_roles(
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Error fixing roles: {str(e)}")
+
+
+# ==================== Sync Users to Employees ====================
+
+SKIP_EMAILS = {'admin@inara.org', 'hr@inara.org'}
+
+@router.post("/sync-employees")
+async def sync_users_to_employees(
+    current_user: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Create employee records for every user that doesn't have one.
+    Skips system accounts (admin@inara.org, hr@inara.org).
+    Safe to call multiple times — already-linked users are skipped.
+    Requires: admin permission.
+    """
+    try:
+        # Get current max employee number suffix
+        result = await db.execute(
+            text("SELECT employee_number FROM employees ORDER BY created_at ASC")
+        )
+        all_numbers = [r[0] for r in result.fetchall() if r[0] and r[0].startswith("EMP-")]
+        max_num = 0
+        for n in all_numbers:
+            try:
+                max_num = max(max_num, int(n.split("-")[1]))
+            except (IndexError, ValueError):
+                pass
+
+        # Find all users without an employee record
+        result = await db.execute(
+            text("""
+                SELECT u.id, u.email, u.first_name, u.last_name, u.country_code, u.created_at
+                FROM users u
+                LEFT JOIN employees e ON u.id = e.user_id
+                WHERE e.id IS NULL
+                  AND u.is_deleted = false
+                  AND u.email NOT IN :skip_emails
+                ORDER BY u.created_at
+            """),
+            {"skip_emails": tuple(SKIP_EMAILS)}
+        )
+        users = result.fetchall()
+
+        created = []
+        failed = []
+
+        for user_id, email, first_name, last_name, country_code, created_at in users:
+            max_num += 1
+            emp_number = f"EMP-{max_num:03d}"
+            emp_id = str(uuid.uuid4())
+            now = datetime.utcnow()
+            hire_date = created_at.date() if created_at else date.today()
+
+            try:
+                await db.execute(
+                    text("""
+                        INSERT INTO employees (
+                            id, user_id, employee_number, first_name, last_name,
+                            work_email, status, employment_type, hire_date,
+                            country_code, created_at, updated_at, is_deleted
+                        ) VALUES (
+                            :id, :user_id, :employee_number, :first_name, :last_name,
+                            :work_email, 'ACTIVE', 'FULL_TIME', :hire_date,
+                            :country_code, :created_at, :updated_at, false
+                        )
+                    """),
+                    {
+                        "id": emp_id,
+                        "user_id": str(user_id),
+                        "employee_number": emp_number,
+                        "first_name": first_name,
+                        "last_name": last_name,
+                        "work_email": email,
+                        "hire_date": hire_date,
+                        "country_code": country_code if country_code else "LB",
+                        "created_at": now,
+                        "updated_at": now,
+                    }
+                )
+                await db.commit()
+                created.append({"employee_number": emp_number, "email": email, "name": f"{first_name} {last_name}"})
+            except Exception as e:
+                await db.rollback()
+                max_num -= 1
+                failed.append({"email": email, "error": str(e)[:200]})
+
+        return {
+            "success": True,
+            "created": len(created),
+            "failed": len(failed),
+            "skipped_system_accounts": list(SKIP_EMAILS),
+            "employees_created": created,
+            "errors": failed,
+        }
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error syncing employees: {str(e)}")
 
 
 # ==================== Country Configuration Routes ====================
