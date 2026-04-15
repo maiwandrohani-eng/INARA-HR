@@ -369,54 +369,59 @@ async def lifespan(app: FastAPI):
     from core.database import async_engine
     try:
         # Try to query the users table to check if it exists
-        async with async_engine.connect() as conn:
+        # Use a separate connection that is properly closed to avoid polluting the pool
+        tables_exist = False
+        try:
+            async with async_engine.connect() as check_conn:
+                result = await check_conn.execute(text("SELECT 1 FROM users LIMIT 1"))
+                result.fetchone()
+                tables_exist = True
+        except Exception:
+            tables_exist = False
+
+        if tables_exist:
+            logger.info("✅ Database tables already exist")
+            # Tables exist, try to update user roles in background (don't block startup)
             try:
-                result = await conn.execute(text("SELECT 1 FROM users LIMIT 1"))
-                await result.fetchone()
-                logger.info("✅ Database tables already exist")
-                
-                # Tables exist, try to update user roles in background (don't block startup)
+                await update_maiwand_roles_background()
+            except Exception as bg_error:
+                logger.warning(f"⚠️  Background role update failed (non-critical): {bg_error}")
+        else:
+            # Table doesn't exist, create all tables
+            logger.warning("⚠️  Database tables not found. Creating tables...")
+            try:
+                from core.database import Base
+                # Import all models to register them with Base.metadata
+                from modules.auth.models import User, Role, Permission
+                from modules.employees.models import Employee, Department, Position, Contract, EmployeeDocument
+                from modules.recruitment.models import JobPosting, Application, Interview, OfferLetter
+                from modules.leave.models import LeavePolicy, LeaveBalance, LeaveRequest, AttendanceRecord
+                from modules.timesheets.models import Project, Timesheet, TimesheetEntry
+                from modules.performance.models import PerformanceGoal, PerformanceReview, PerformanceImprovementPlan
+                from modules.learning.models import TrainingCourse, TrainingEnrollment
+                from modules.compensation.models import SalaryHistory
+                from modules.safeguarding.models import SafeguardingCase
+                from modules.grievance.models import Grievance, DisciplinaryAction
+                from modules.travel.models import TravelRequest, VisaRecord
+                from modules.admin.models import CountryConfig, SalaryBand
+                from modules.onboarding.models import OnboardingChecklist
+
+                # Create all tables
+                async with async_engine.begin() as create_conn:
+                    await create_conn.run_sync(Base.metadata.create_all)
+                logger.info("✅ Database tables created successfully!")
+
+                # After creating tables, try to create initial user (non-blocking)
                 try:
-                    await update_maiwand_roles_background()
-                except Exception as bg_error:
-                    logger.warning(f"⚠️  Background role update failed (non-critical): {bg_error}")
-                    
-            except Exception:
-                # Table doesn't exist, create all tables
-                logger.warning("⚠️  Database tables not found. Creating tables...")
-                try:
-                    from core.database import Base
-                    # Import all models to register them with Base.metadata
-                    from modules.auth.models import User, Role, Permission
-                    from modules.employees.models import Employee, Department, Position, Contract, EmployeeDocument
-                    from modules.recruitment.models import JobPosting, Application, Interview, OfferLetter
-                    from modules.leave.models import LeavePolicy, LeaveBalance, LeaveRequest, AttendanceRecord
-                    from modules.timesheets.models import Project, Timesheet, TimesheetEntry
-                    from modules.performance.models import PerformanceGoal, PerformanceReview, PerformanceImprovementPlan
-                    from modules.learning.models import TrainingCourse, TrainingEnrollment
-                    from modules.compensation.models import SalaryHistory
-                    from modules.safeguarding.models import SafeguardingCase
-                    from modules.grievance.models import Grievance, DisciplinaryAction
-                    from modules.travel.models import TravelRequest, VisaRecord
-                    from modules.admin.models import CountryConfig, SalaryBand
-                    from modules.onboarding.models import OnboardingChecklist
-                    
-                    # Create all tables
-                    async with async_engine.begin() as create_conn:
-                        await create_conn.run_sync(Base.metadata.create_all)
-                    logger.info("✅ Database tables created successfully!")
-                    
-                    # After creating tables, try to create initial user (non-blocking)
-                    try:
-                        await create_initial_user_background()
-                    except Exception as user_error:
-                        logger.warning(f"⚠️  Could not create initial user automatically: {user_error}")
-                        logger.warning("⚠️  You can create it manually by running: python scripts/create_maiwand_user.py")
-                        
-                except Exception as table_error:
-                    logger.error(f"❌ Failed to create tables: {table_error}")
-                    logger.warning("⚠️  You may need to run: python scripts/init_db.py manually")
-                    # Don't raise - allow app to start even if tables can't be created
+                    await create_initial_user_background()
+                except Exception as user_error:
+                    logger.warning(f"⚠️  Could not create initial user automatically: {user_error}")
+                    logger.warning("⚠️  You can create it manually by running: python scripts/create_maiwand_user.py")
+
+            except Exception as table_error:
+                logger.error(f"❌ Failed to create tables: {table_error}")
+                logger.warning("⚠️  You may need to run: python scripts/init_db.py manually")
+                # Don't raise - allow app to start even if tables can't be created
     except Exception as e:
         logger.error(f"❌ Database initialization error: {e}")
         logger.warning("⚠️  Application will start but database operations may fail")

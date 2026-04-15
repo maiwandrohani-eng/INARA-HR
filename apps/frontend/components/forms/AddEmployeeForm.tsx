@@ -581,9 +581,10 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
                   <SelectContent>
                     <SelectItem value="full_time">Full-Time</SelectItem>
                     <SelectItem value="part_time">Part-Time</SelectItem>
+                    <SelectItem value="contract">Contract</SelectItem>
                     <SelectItem value="consultant">Consultant</SelectItem>
-                    <SelectItem value="volunteer">Volunteer - Paid</SelectItem>
-                    <SelectItem value="volunteer">Volunteer - Unpaid</SelectItem>
+                    <SelectItem value="intern">Intern</SelectItem>
+                    <SelectItem value="volunteer">Volunteer</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
