@@ -41,7 +41,7 @@ export function useEmployees() {
         return
       }
       
-      const response = await fetch(`${API_BASE_URL}/employees/?refresh=true`, {
+      const response = await fetch(`${API_BASE_URL}/employees/?refresh=true&limit=1000`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

@@ -30,7 +30,7 @@ export interface CreateEmployeeData {
 }
 
 class EmployeeService {
-  async getEmployees(skip: number = 0, limit: number = 100): Promise<Employee[]> {
+  async getEmployees(skip: number = 0, limit: number = 1000): Promise<Employee[]> {
     const response = await apiClient.get<Employee[]>('/employees', {
       params: { skip, limit },
     })

@@ -286,7 +286,7 @@ async def export_organization_chart_pdf(
 @router.get("/", response_model=List[EmployeeResponse])
 async def list_employees(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 1000,
     refresh: bool = Query(False),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_hr_read)
