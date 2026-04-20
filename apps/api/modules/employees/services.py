@@ -126,32 +126,68 @@ class EmployeeService:
         max_attempts = 5
         for attempt in range(max_attempts):
             try:
-                async with self.db.begin():
-                    employee = await self.employee_repo.create(employee_dict)
+                employee = await self.employee_repo.create(employee_dict)
 
-                    # Create contract in the same transaction if salary is provided.
-                    if contract_salary and contract_salary > 0:
-                        contract_number = await _generate_next_contract_number()
+                # Create contract in the same transaction if salary is provided.
+                if contract_salary and contract_salary > 0:
+                    contract_number = await _generate_next_contract_number()
 
-                        contract = Contract(
-                            employee_id=employee.id,
-                            contract_number=contract_number,
-                            contract_type=contract_type or "Permanent",
-                            start_date=contract_start_date or employee.hire_date,
-                            end_date=contract_end_date,
-                            salary=contract_salary,
-                            currency=contract_currency,
-                            salary_frequency="monthly",
-                            is_active="true",
-                            country_code=employee.country_code or "AF",
-                        )
-                        self.db.add(contract)
+                    contract = Contract(
+                        employee_id=employee.id,
+                        contract_number=contract_number,
+                        contract_type=contract_type or "Permanent",
+                        start_date=contract_start_date or employee.hire_date,
+                        end_date=contract_end_date,
+                        salary=contract_salary,
+                        currency=contract_currency,
+                        salary_frequency="monthly",
+                        is_active="true",
+                        country_code=employee.country_code or "AF",
+                    )
+                    self.db.add(contract)
 
+                await self.db.flush()
                 await self.db.refresh(employee)
                 break
             except IntegrityError as exc:
                 await self.db.rollback()
                 error_text = str(exc)
+                
+                # Unique violation on employee_number – regenerate and retry
+                if "employees_employee_number_key" in error_text:
+                    employee_dict["employee_number"] = await _generate_next_employee_number()
+                    continue
+                
+                # Unique violation on work_email – surface clear error
+                if "employees_work_email_key" in error_text:
+                    raise AlreadyExistsException(
+                        resource="Employee",
+                        details="An employee with this work email already exists.",
+                    ) from exc
+
+                # Unique violation on contract_number – regenerate and retry.
+                if "contracts_contract_number_key" in error_text:
+                    continue
+                
+                # Other integrity errors
+                raise ValidationException(
+                    message="Failed to create employee due to database constraint",
+                    details=error_text,
+                ) from exc
+            except Exception as exc:
+                import logging, traceback
+                logging.getLogger(__name__).error(
+                    "create_employee unexpected error: %s\n%s",
+                    exc,
+                    traceback.format_exc()
+                )
+                await self.db.rollback()
+                raise ValidationException(
+                    message="Failed to create employee due to invalid data",
+                    details=str(exc),
+                ) from exc
+        
+        if employee is None:
                 
                 # Unique violation on employee_number – regenerate and retry
                 if "employees_employee_number_key" in error_text:
