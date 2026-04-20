@@ -239,12 +239,22 @@ export function AddEmployeeForm({ open, onOpenChange, onSuccess }: AddEmployeeFo
       
       if (!response.ok) {
         const error = await response.json()
-        const backendMessage =
-          error.error?.message ||
-          error.error?.details ||
-          error.detail ||
-          error.message ||
-          'Failed to add employee'
+        let backendMessage: string
+        if (Array.isArray(error.detail)) {
+          // Pydantic validation errors: [{loc: [...], msg: "..."}]
+          backendMessage = error.detail
+            .map((e: { loc?: string[]; msg?: string }) =>
+              e.loc ? `${e.loc.slice(1).join('.')}: ${e.msg}` : e.msg
+            )
+            .join('; ')
+        } else {
+          backendMessage =
+            error.error?.message ||
+            error.error?.details ||
+            error.detail ||
+            error.message ||
+            'Failed to add employee'
+        }
         throw new Error(backendMessage)
       }
 
