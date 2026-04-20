@@ -175,6 +175,12 @@ class EmployeeService:
                     details=error_text,
                 ) from exc
             except Exception as exc:
+                import logging, traceback
+                logging.getLogger(__name__).error(
+                    "create_employee unexpected error: %s\n%s",
+                    exc,
+                    traceback.format_exc()
+                )
                 await self.db.rollback()
                 raise ValidationException(
                     message="Failed to create employee due to invalid data",
