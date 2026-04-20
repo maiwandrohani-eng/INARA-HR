@@ -351,6 +351,8 @@ async def create_employee(
     service = EmployeeService(db)
     employee = await service.create_employee(employee_data)
     
+    await db.commit()
+    
     # Invalidate employees list cache
     invalidate_cache("employees:list:*")
     
