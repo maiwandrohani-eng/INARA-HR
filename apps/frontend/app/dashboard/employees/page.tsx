@@ -332,10 +332,10 @@ export default function EmployeesPage() {
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
                   <option value="">All Statuses</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="terminated">Terminated</option>
-                  <option value="on_leave">On Leave</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                  <option value="TERMINATED">Terminated</option>
+                  <option value="ON_LEAVE">On Leave</option>
                 </select>
               </div>
 
