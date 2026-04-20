@@ -188,42 +188,6 @@ class EmployeeService:
                 ) from exc
         
         if employee is None:
-                
-                # Unique violation on employee_number – regenerate and retry
-                if "employees_employee_number_key" in error_text:
-                    employee_dict["employee_number"] = await _generate_next_employee_number()
-                    continue
-                
-                # Unique violation on work_email – surface clear error
-                if "employees_work_email_key" in error_text:
-                    raise AlreadyExistsException(
-                        resource="Employee",
-                        details="An employee with this work email already exists.",
-                    ) from exc
-
-                # Unique violation on contract_number – regenerate and retry.
-                if "contracts_contract_number_key" in error_text:
-                    continue
-                
-                # Other integrity errors
-                raise ValidationException(
-                    message="Failed to create employee due to database constraint",
-                    details=error_text,
-                ) from exc
-            except Exception as exc:
-                import logging, traceback
-                logging.getLogger(__name__).error(
-                    "create_employee unexpected error: %s\n%s",
-                    exc,
-                    traceback.format_exc()
-                )
-                await self.db.rollback()
-                raise ValidationException(
-                    message="Failed to create employee due to invalid data",
-                    details=str(exc),
-                ) from exc
-        
-        if employee is None:
             raise ValidationException(
                 message="Could not generate a unique employee number after multiple attempts",
                 details="Too many conflicts on employee_number",
